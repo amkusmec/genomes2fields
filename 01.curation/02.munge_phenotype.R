@@ -99,14 +99,14 @@ yield_2016 <- read_csv("data/phenotype/g2f_2016_hybrid_data_no_outliers.csv") %>
   select(`Field-Location`, Pedigree, Replicate:`Silking [date]`, 
          `Plant Height [cm]`:`Grain Yield [bu/acre]`, Year:Set) %>%
   rename(Environment = `Field-Location`, Row = Range, Column = Pass,
-         Planted = `Date Plot Planted`, Harveted = `Date Plot Harvested`,
+         Planted = `Date Plot Planted`, Harvested = `Date Plot Harvested`,
          Anthesis = `Anthesis [date]`, PlantHeight = `Plant Height [cm]`, 
          EarHeight = `Ear Height [cm]`, Stand = `Stand Count [plants]`, 
          RootLodging = `Root Lodging [plants]`, StalkLodging = `Stalk Lodging [plants]`, 
          GrainMoisture = `Grain Moisture [percent]`, 
          TestWeight = `Test Weight [lbs/bu]`, PlotWeight = `Plot Weight [lbs]`, 
          Yield = `Grain Yield [bu/acre]`) %>%
-  filter(!is.na(Anthesis)) %>%
+  filter(!is.na(Anthesis), !is.na(Harvested)) %>%
   select(Year, Environment:Pedigree, Set, Replicate, Block, Row:Anthesis, 
          Stand, StalkLodging:RootLodging, Yield:GrainMoisture,
          PlantHeight:EarHeight)

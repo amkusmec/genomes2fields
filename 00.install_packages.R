@@ -1,3 +1,3 @@
 ### Run once:
 
-install.packages(c("tidyverse", "lubridate", "lutz"))
+install.packages(c("tidyverse", "lubridate", "lutz", "prism", "purrrlyr"))
