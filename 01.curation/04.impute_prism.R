@@ -31,8 +31,8 @@ for (i in unique(weather$Year)) {
   filter(weather, Year == i) %>%
     ggplot(., aes(x = UTC, y = TEMP)) + theme_bw() +
       geom_line() + facet_wrap(~ Environment)
-  ggsave(paste0("figures/munge/weather_unimputed_", i, ".pdf"), height = 8, width = 10, 
-         units = "in", dpi = 300)
+  ggsave(paste0("figures/munge/weather_unimputed_TEMP_", i, ".pdf"), height = 8, 
+         width = 10, units = "in", dpi = 300)
 }
 
 # 2016 data look suspicious: late season temperatures never decline
@@ -296,6 +296,6 @@ for (i in unique(weather_imputed$Year)) {
     gather(Variable, Value, TMIN, TMAX) %>%
     ggplot(., aes(x = Date, y = Value, group = Variable, colour = Variable)) + 
       theme_bw() + geom_line() + facet_wrap(~ Environment)
-  ggsave(paste0("figures/munge/weather_imputed_", i, ".pdf"), height = 8, width = 10, 
-         units = "in", dpi = 300)
+  ggsave(paste0("figures/munge/weather_imputed_TEMP_", i, ".pdf"), height = 8, 
+         width = 10, units = "in", dpi = 300)
 }
