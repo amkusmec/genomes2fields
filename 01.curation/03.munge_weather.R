@@ -98,8 +98,9 @@ weather_2016 <- read_csv("data/weather/g2f_2016_weather_clean.csv") %>%
 ### Units for SR are W/m^2 from G2F weather stations. Conversion to MJ/d/m^2 for
 ### evapotranspiration estimation comes from Figure 4.3.1.1 of
 ### https://power.larc.nasa.gov/new/files/POWER_Data_v8_methodology.pdf.
-### MJ/d/m^2 = 3.6*41.67*W/m^2
+### kWh/d/m^2 = 3.6   MJ/d/m^2
+### W/m^2     = 41.67 kWh/d/m^2
 weather <- bind_rows(weather_2014, weather_2015, weather_2016) %>%
-  mutate(SR = 3.6*41.67*SR)
+  mutate(SR = 3.6*(1/41.67)*SR)
 
 write_rds(weather, "data/weather/weather_munged.rds")

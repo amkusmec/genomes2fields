@@ -84,8 +84,20 @@ POWER <- function(start_date, end_date, lat, lon) {
          "&outputList=JSON")
 }
 
+POWER2 <- function(lat, lon) {
+  paste0("https://power.larc.nasa.gov/cgi-bin/v1/DataAccess.py?",
+         "request=execute&identifier=SinglePoint",
+         "&parameters=SG_DAY_HOUR_AVG",
+         "&lat=", lat,
+         "&lon=", lon,
+         "&userCommunity=AG",
+         "&tempAverage=CLIMATOLOGY",
+         "&outputList=JSON")
+}
+
 
 # Retrieve POWER data for all sites ---------------------------------------
+sr2 <- sr
 sr <- sr %>%
   by_row(function(r) {
     temp <- POWER(start_date = str_replace_all(r$Planted[1], "-", ""), 
@@ -103,6 +115,22 @@ sr <- sr %>%
   }) %>%
   unnest(.out) %>%
   select(Year, Environment, Month, Day, ALLSKY_SFC_SW_DWN:WS2M)
+
+sr2 <- sr2 %>%
+  by_row(function(r) {
+    temp <- POWER2(lat = r$Latitude[1], lon = r$Longitude[1]) %>%
+      fromJSON()
+    t(temp$features$properties$parameter$SG_DAY_HOUR_AVG) %>%
+      as_tibble(rownames = "Month") %>%
+      slice(1:12) %>%
+      rename(SG_DAY_HOUR_AVG = `1`)
+  }) %>%
+  unnest(.out)
+
+sr <- sr2 %>%
+  select(Year, Environment, Month, SG_DAY_HOUR_AVG) %>%
+  mutate(Month = as.integer(Month)) %>%
+  inner_join(sr, ., by = c("Year", "Environment", "Month"))
 
 write_rds(sr, "data/weather/weather_power.rds")
 

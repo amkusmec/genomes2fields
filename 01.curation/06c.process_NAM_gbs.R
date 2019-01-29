@@ -3,14 +3,20 @@ library(parallel)
 
 
 # Move and uncompress SNPs ------------------------------------------------
-system(paste0("cp /media/analyses/SRP009896.GBS.Sequencing.of.NAM/SNPs/", 
-              "SRP009896.GBS.Sequencing.of.NAM.SNPs_Matrix.Recalled.", 
-              "genotypes.vcf.gz data/gbs/recalled_NAM_gbs.vcf.gz"))
-system("gunzip data/gbs/recalled_NAM_gbs.vcf.gz")
+# system(paste0("cp /media/analyses/SRP009896.GBS.Sequencing.of.NAM/SNPs/", 
+#               "SRP009896.GBS.Sequencing.of.NAM.SNPs_Matrix.Recalled.", 
+#               "genotypes.vcf.gz data/gbs/recalled_NAM_gbs.vcf.gz"))
+# system("gunzip data/gbs/recalled_NAM_gbs.vcf.gz")
+
+system(paste0("cp /media/analyses/SRP009896.GBS.Sequencing.of.NAM/", 
+              "SNPs.at.least.3.reads/SRP009896.GBS.Sequencing.of.NAM.", 
+              "SNPs_Matrix_N3.Recalled.genotypes.vcf.gz data/gbs/recalled_NAM3", 
+              "_gbs.vcf.gz"))
+system("gunzip data/gbs/recalled_NAM3_gbs.vcf.gz")
 
 
 # Split the information from the SNP calls --------------------------------
-vcf <- read_tsv("data/gbs/recalled_NAM_gbs.vcf", comment = "##") %>%
+vcf <- read_tsv("data/gbs/recalled_NAM3_gbs.vcf", comment = "##") %>%
   filter(!(`#CHROM` %in% c("chrMt", "chrPt", "chrUNKNOWN")))
 
 snp_info <- vcf[, 1:9] %>%
@@ -75,8 +81,8 @@ parsed <- parLapply(cl, vcf, function(v) {
 
 stopCluster(cl)
 parsed <- do.call("rbind", parsed)
-write_rds(parsed, "data/gbs/recalled_NAM_gbs_parsed.rds")
-write_rds(snp_info, "data/gbs/recalled_NAM_gbs_snp_info.rds")
+write_rds(parsed, "data/gbs/recalled_NAM3_gbs_parsed.rds")
+write_rds(snp_info, "data/gbs/recalled_NAM3_gbs_snp_info.rds")
 
 rm(cl, vcf)
 gc()
@@ -99,8 +105,8 @@ tibble(Missing = missing) %>%
     geom_vline(xintercept = 0.8, linetype = 2) +
     labs(x = "% Missing Calls", y = "Count") +
     scale_x_continuous(labels = scales::percent) +
-    ggtitle("NAM GBS")
-ggsave("figures/munge/NAM_gbs_missing.pdf", width = 6, height = 4, units = "in", 
+    ggtitle("NAM GBS (3 reads)")
+ggsave("figures/munge/NAM3_gbs_missing.pdf", width = 6, height = 4, units = "in", 
        dpi = 300)
 parsed <- parsed[, missing <= 0.8]
 
