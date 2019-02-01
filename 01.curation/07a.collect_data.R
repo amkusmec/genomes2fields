@@ -21,6 +21,11 @@ for (i in 1:10) {
                 "maizeHapMapV2_B73RefGenV2_201203028_chr", i, ".hmp.txt.gz"))
   system(paste0("gunzip maizeHapMapV2_B73RefGenV2_201203028_chr", i, ".hmp.txt.gz"))
 }
+
+# Get NAM marker data from CyVerse
+setwd("../NAM")
+system("iget /iplant/home/shared/panzea/genotypes/SNPs/NAM_map_and_genos-120731.zip")
+system("unzip NAM_map_and_genos-120731.zip")
 system("iexit")
 
 
