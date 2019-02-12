@@ -153,4 +153,17 @@ yield <- bind_rows(yield_2014, yield_2015, yield_2016, yield_2017) %>%
                             "ARGENTINE_FLINTY_COMPOSITE-C(1)-37-B-B-B2-1-B25/LH195", 
                             Pedigree))
 
+# Make some adjustments based on kernels planted per plot
+metadata <- read_csv("data/metadata/metadata_clean.csv")
+yield <- full_join(yield, metadata, by = c("Year", "Environment")) %>%
+  mutate(Stand = if_else(Stand > Kernels & !is.na(Kernels), as.integer(NA), Stand), 
+         StalkLodging = if_else(StalkLodging > Stand & !is.na(Stand), 
+                                as.integer(NA), StalkLodging), 
+         RootLodging = if_else(RootLodging > Stand & !is.na(Stand), 
+                               as.integer(NA), RootLodging)) %>%
+  select(-Kernels, -Latitude, -Longitude) %>%
+  mutate(PlantYield = Yield/Stand) %>%
+  filter((PlantYield <= 10 & PlantYield > 0 & !is.infinite(PlantYield)) | is.na(PlantYield)) %>%
+  select(-PlantYield)
+
 write_rds(yield, "data/phenotype/yield_munged.rds")

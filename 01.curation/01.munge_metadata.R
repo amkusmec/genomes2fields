@@ -36,24 +36,27 @@ setwd("../..")
 # Process files -----------------------------------------------------------
 meta_2014 <- read_csv("data/metadata/g2f_2014_field_characteristics.csv") %>%
   filter(Type == "hybrid") %>%
-  rename(Environment = Experiment, Latitude = lat, Longitude = long) %>%
+  rename(Environment = Experiment, Latitude = lat, Longitude = long, 
+         Kernels = `Number kernels planted`) %>%
   mutate(Year = 2014,
          Environment = if_else(Environment == "G2FWI-HYB", "WIH1", Environment)) %>%
-  select(Year, Environment, Latitude, Longitude)
+  select(Year, Environment, Latitude, Longitude, Kernels)
 
 meta_2015 <- read_csv("data/metadata/g2f_2015_field_metadata.csv") %>%
   filter(Type == "Hybrid") %>%
   mutate(Year = 2015) %>%
-  rename(Environment = Experiment, Latitude = `WS Lat`, Longitude = `WS Lon`) %>%
-  select(Year, Environment, Latitude, Longitude)
+  rename(Environment = Experiment, Latitude = `WS Lat`, Longitude = `WS Lon`, 
+         Kernels = KernelsPerPlot) %>%
+  select(Year, Environment, Latitude, Longitude, Kernels)
 
 meta_2016 <- read_csv("data/metadata/g2f_2016_field_metadata.csv") %>%
   rename(Environment = `Experiment Code`,
          Latitude = `Weather station latitude (in decimal numbers NOT DMS)`,
-         Longitude = `Weather station longitude (in decimal numbers NOT DMS)`) %>%
+         Longitude = `Weather station longitude (in decimal numbers NOT DMS)`, 
+         Kernels = `Number kernels planted per plot (>200 seed/pack for cone planters)`) %>%
   mutate(Environment = str_replace(Environment, "--5/25 not done", ""),
          Year = 2016) %>%
-  select(Year, Environment, Latitude, Longitude)
+  select(Year, Environment, Latitude, Longitude, Kernels)
 
 metadata <- bind_rows(meta_2014, meta_2015, meta_2016) %>%
   filter(!is.na(Latitude), !is.na(Longitude), !str_detect(Environment, "ON"))
