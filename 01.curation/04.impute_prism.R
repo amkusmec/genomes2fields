@@ -13,24 +13,49 @@ meta <- read_csv("data/metadata/metadata_clean.csv")
 weather_sites <- with(weather, paste(Environment, Year, sep = "_")) %>% unique()
 yield_sites <- with(yield, paste(Environment, Year, sep = "_")) %>% unique()
 meta_sites <- with(meta, paste(Environment, Year, sep = "_")) %>% unique()
-sites <- intersect(weather_sites, intersect(yield_sites, meta_sites))
+sites_ym <- intersect(yield_sites, meta_sites)
+sites <- intersect(weather_sites, sites_ym)
 
 weather <- weather %>%
   mutate(Site = paste(Environment, Year, sep = "_")) %>%
   filter(Site %in% sites)
 yield <- yield %>%
   mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  filter(Site %in% sites)
+  filter(Site %in% sites_ym)
 meta <- meta %>%
   mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  filter(Site %in% sites)
+  filter(Site %in% sites_ym)
+
+# Some additional filtering based on the availability of planting/harvest dates
+ph_sites <- yield %>%
+  group_by(Year, Environment) %>%
+  summarise(Planted = min(Planted, na.rm = TRUE), 
+            Harvested = max(Harvested, na.rm = TRUE)) %>%
+  ungroup() %>%
+  filter(!is.na(as.character(Planted)), !is.na(as.character(Harvested))) %>%
+  pull(Site) %>% 
+  unique()
+
+weather <- weather %>%
+  filter(Site %in% ph_sites)
+yield <- yield %>%
+  filter(Site %in% ph_sites)
+meta <- meta %>%
+  filter(Site %in% ph_sites)
 
 
 # Examine the quality of the temperature data -----------------------------
 for (i in unique(weather$Year)) {
   filter(weather, Year == i) %>%
-    ggplot(., aes(x = UTC, y = TEMP)) + theme_bw() +
-      geom_line() + facet_wrap(~ Environment)
+    mutate(Date = paste(Year, Month, Day, sep = "-") %>% ymd()) %>%
+    group_by(Environment, Date) %>%
+    summarise(TMIN = min(TEMP, na.rm = TRUE), 
+              TMAX = max(TEMP, na.rm = TRUE)) %>%
+    ungroup() %>%
+    gather(Measure, TEMP, TMIN, TMAX) %>%
+    ggplot(., aes(x = Date, y = TEMP, group = Measure, colour = Measure)) + 
+      theme_bw() + geom_line() + facet_wrap(~ Environment) +
+      scale_colour_manual(values = c("TMIN" = "blue", "TMAX" = "red"))
   ggsave(paste0("figures/munge/weather_unimputed_TEMP_", i, ".pdf"), height = 8, 
          width = 10, units = "in", dpi = 300)
 }
@@ -68,8 +93,8 @@ missing_temp <- weather %>%
     days <- with(df, paste(Year, Month, Day, sep = "-")) %>%
       ymd() %>% unique()
     temp <- filter(yield, Year == df$Year[1], Environment == df$Environment[1])
-    first <- min(temp$Planted)
-    last <- max(temp$Harvested)
+    first <- min(temp$Planted, na.rm = TRUE)
+    last <- max(temp$Harvested, na.rm = TRUE)
     missing <- seq(first, last, 1)
     missing <- missing[!(missing %in% days)]
     if (length(missing) == 0) return(NULL)
@@ -78,14 +103,29 @@ missing_temp <- weather %>%
 missing_temp <- missing_temp[!sapply(missing_temp, is.null)]
 missing_temp <- unlist(missing_temp, use.names = FALSE)
 
+# Days from 2017 (for which we have absolutely no weather data)
+days_2017 <- yield %>%
+  filter(Year == 2017) %>%
+  group_by(Year, Environment) %>%
+  summarise(Planted = min(Planted, na.rm = TRUE), 
+            Harvested = max(Harvested, na.rm = TRUE)) %>%
+  ungroup() %>%
+  by_row(function(r) {
+    seq(r$Planted[1], r$Harvested[1], 1)
+  }, .to = "Date") %>%
+  unnest(Date) %>%
+  mutate(Key = paste(Environment, Date, sep = "_") %>%
+           str_replace_all(., "-", "_")) %>%
+  pull(Key)
+
 
 # Reformat and download PRISM data ----------------------------------------
-min_temp <- tibble(Key = c(min_temp_days, missing_temp)) %>%
+min_temp <- tibble(Key = c(min_temp_days, missing_temp, days_2017)) %>%
   separate(Key, c("Environment", "Year", "Month", "Day"), sep = "_", remove = FALSE) %>%
   mutate(Date = paste(Year, Month, Day, sep = "-") %>% ymd()) %>%
   mutate_at(c("Year", "Month", "Day"), as.integer) %>%
   inner_join(., meta, by = c("Year", "Environment"))
-max_temp <- tibble(Key = c(max_temp_days, missing_temp)) %>%
+max_temp <- tibble(Key = c(max_temp_days, missing_temp, days_2017)) %>%
   separate(Key, c("Environment", "Year", "Month", "Day"), sep = "_", remove = FALSE) %>%
   mutate(Date = paste(Year, Month, Day, sep = "-") %>% ymd()) %>%
   mutate_at(c("Year", "Month", "Day"), as.integer) %>%
@@ -154,11 +194,11 @@ ppt_days <- weather %>%
   mutate(Key = paste(Environment, Year, Month, Day, sep = "_")) %>%
   pull(Key)
 
-# Use days in `missing_temp` as well
+# Use days in `missing_temp` and `days_2017` as well
 
 
 # Reformat and download PRISM data ----------------------------------------
-total_ppt <- tibble(Key = c(ppt_days, missing_temp)) %>%
+total_ppt <- tibble(Key = c(ppt_days, missing_temp, days_2017)) %>%
   separate(Key, c("Environment", "Year", "Month", "Day"), sep = "_", remove = FALSE) %>%
   mutate(Date = paste(Year, Month, Day, sep = "-") %>% ymd()) %>%
   mutate_at(c("Year", "Month", "Day"), as.integer) %>%

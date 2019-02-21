@@ -1,4 +1,5 @@
 library(tidyverse)
+library(readxl)
 
 
 # Download the files ------------------------------------------------------
@@ -58,7 +59,22 @@ meta_2016 <- read_csv("data/metadata/g2f_2016_field_metadata.csv") %>%
          Year = 2016) %>%
   select(Year, Environment, Latitude, Longitude, Kernels)
 
-metadata <- bind_rows(meta_2014, meta_2015, meta_2016) %>%
+# Includes two sites from NE that were sent via email
+meta_2017 <- read_xlsx("data/metadata/metadata_2017_2018.xlsx") %>%
+  rename(Year = Season, Environment = `Field-Location`, 
+         Latitude = `Weather Station \r\nLatitude`, 
+         Longitude = `Weather Station \r\nLogitude`) %>%
+  select(Year, Environment, Latitude, Longitude) %>%
+  filter(Year == 2017) %>%
+  mutate(Kernels = NA) %>%
+  bind_rows(., 
+            tibble(Year = 2017, 
+                   Environment = c("NEH3", "NEH4"), 
+                   Latitude = c(40.9315, 40.9412), 
+                   Longitude = c(-101.7670, -101.7659), 
+                   Kernel = NA))
+
+metadata <- bind_rows(meta_2014, meta_2015, meta_2016, meta_2017) %>%
   filter(!is.na(Latitude), !is.na(Longitude), !str_detect(Environment, "ON"))
 
 write_csv(metadata, "data/metadata/metadata_clean.csv")
