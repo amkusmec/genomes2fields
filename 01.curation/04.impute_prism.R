@@ -2,6 +2,7 @@ library(tidyverse)
 library(purrrlyr)
 library(lubridate)
 library(prism)
+library(parallel)
 
 
 # Keep sites for which we have complete information -----------------------
@@ -33,6 +34,7 @@ ph_sites <- yield %>%
             Harvested = max(Harvested, na.rm = TRUE)) %>%
   ungroup() %>%
   filter(!is.na(as.character(Planted)), !is.na(as.character(Harvested))) %>%
+  mutate(Site = paste(Environment, Year, sep = "_")) %>%
   pull(Site) %>% 
   unique()
 
@@ -143,9 +145,21 @@ source("src/haversine.R")
 # Throw-away function for renaming columns
 foo <- function(x) "Value"
 
+# Create a cluster
+cl <- makeCluster(detectCores())
+clusterEvalQ(cl, { library(tidyverse); library(purrrlyr); library(prism); 
+  source("src/haversine.R"); foo <- function(x) "Value" })
+
+# Daily minimum temperature
+split_idx <- clusterSplit(cl, 1:nrow(min_temp))
+split_idx <- rep(1:detectCores(), times = sapply(split_idx, length))
+
 min_temp <- min_temp %>%
   mutate(Date = str_replace_all(Date, "-", "")) %>%
-  by_row(function(r) {
+  split(., split_idx)
+
+min_temp <- parLapply(cl, min_temp, function(df) {
+  by_row(df, function(r) {
     grep(ls_prism_data()[, 1], pattern = r$Date, value = TRUE) %>%
       grep(., pattern = "tmin", value = TRUE) %>%
       prism_stack() %>%
@@ -161,11 +175,20 @@ min_temp <- min_temp %>%
       slice(1L) %>%
       pull(Value)
   }, .collate = "row", .to = "TMIN")
+}) %>%
+  bind_rows()
 write_rds(min_temp, "data/weather/tmin_prism.rds")
+
+# Daily maximum temperature
+split_idx <- clusterSplit(cl, 1:nrow(max_temp))
+split_idx <- rep(1:detectCores(), times = sapply(split_idx, length))
 
 max_temp <- max_temp %>%
   mutate(Date = str_replace_all(Date, "-", "")) %>%
-  by_row(function(r) {
+  split(., split_idx)
+
+max_temp <- parLapply(cl, max_temp, function(df) {
+  by_row(df, function(r) {
     grep(ls_prism_data()[, 1], pattern = r$Date, value = TRUE) %>%
       grep(., pattern = "tmax", value = TRUE) %>%
       prism_stack() %>%
@@ -181,6 +204,8 @@ max_temp <- max_temp %>%
       slice(1L) %>%
       pull(Value)
   }, .collate = "row", .to = "TMAX")
+}) %>%
+  bind_rows()
 write_rds(max_temp, "data/weather/tmax_prism.rds")
 
 
@@ -208,9 +233,15 @@ get_prism_dailys(type = "ppt", dates = unique(total_ppt$Date), keepZip = FALSE)
 
 
 # Get precipitation from the nearest PRISM grid ---------------------------
+split_idx <- clusterSplit(cl, 1:nrow(total_ppt))
+split_idx <- rep(1:detectCores(), times = sapply(split_idx, length))
+
 total_ppt <- total_ppt %>%
   mutate(Date = str_replace_all(Date, "-", "")) %>%
-  by_row(function(r) {
+  split(., split_idx)
+
+total_ppt <- parLapply(cl, total_ppt, function(df) {
+  by_row(df, function(r) {
     grep(ls_prism_data()[, 1], pattern = r$Date, value = TRUE) %>%
       grep(., pattern = "ppt", value = TRUE) %>%
       prism_stack() %>%
@@ -226,7 +257,13 @@ total_ppt <- total_ppt %>%
       slice(1L) %>%
       pull(Value)
   }, .collate = "row", .to = "PPT")
+}) %>%
+  bind_rows()
 write_rds(total_ppt, "data/weather/ppt_prism.rds")
+
+# Stop the cluster
+stopCluster(cl)
+rm(cl); gc()
 
 
 # Combine (non-)imputed data ----------------------------------------------
@@ -238,7 +275,7 @@ daily_tmin <- weather %>%
   mutate(Key = paste(Environment, Year, Month, Day, sep = "_")) %>%
   filter(!(Key %in% min_temp$Key)) %>%
   bind_rows(.,
-            select(min_temp, -Date, -Latitude, -Longitude, -Site))
+            select(min_temp, -Date, -Latitude, -Longitude, -Site, -Kernels))
 
 daily_tmax <- weather %>%
   group_by(Environment, Year, Month, Day) %>%
@@ -247,7 +284,7 @@ daily_tmax <- weather %>%
   mutate(Key = paste(Environment, Year, Month, Day, sep = "_")) %>%
   filter(!(Key %in% max_temp$Key)) %>%
   bind_rows(.,
-            select(max_temp, -Date, -Latitude, -Longitude, -Site))
+            select(max_temp, -Date, -Latitude, -Longitude, -Site, -Kernels))
 
 daily_ppt <- weather %>%
   group_by(Environment, Year, Month, Day) %>%
@@ -256,7 +293,7 @@ daily_ppt <- weather %>%
   mutate(Key = paste(Environment, Year, Month, Day, sep = "_")) %>%
   filter(!(Key %in% total_ppt$Key)) %>%
   bind_rows(., 
-            select(total_ppt, -Date, -Latitude, -Longitude, -Site))
+            select(total_ppt, -Date, -Latitude, -Longitude, -Site, -Kernels))
 
 # Some days are still missing for TMIN and TMAX
 for (i in which(is.infinite(daily_tmin$TMIN))) {
@@ -333,9 +370,10 @@ write_rds(weather_imputed, "data/weather/weather_prism.rds")
 for (i in unique(weather_imputed$Year)) {
   filter(weather_imputed, Year == i) %>%
     mutate(Date = paste(Year, Month, Day, sep = "-") %>% ymd()) %>%
-    gather(Variable, Value, TMIN, TMAX) %>%
-    ggplot(., aes(x = Date, y = Value, group = Variable, colour = Variable)) + 
-      theme_bw() + geom_line() + facet_wrap(~ Environment)
+    gather(Measure, TEMP, TMIN, TMAX) %>%
+    ggplot(., aes(x = Date, y = TEMP, group = Measure, colour = Measure)) + 
+      theme_bw() + geom_line() + facet_wrap(~ Environment) +
+      scale_colour_manual(values = c("TMIN" = "blue", "TMAX" = "red"))
   ggsave(paste0("figures/munge/weather_imputed_TEMP_", i, ".pdf"), height = 8, 
          width = 10, units = "in", dpi = 300)
 }

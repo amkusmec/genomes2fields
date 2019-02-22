@@ -72,7 +72,7 @@ meta_2017 <- read_xlsx("data/metadata/metadata_2017_2018.xlsx") %>%
                    Environment = c("NEH3", "NEH4"), 
                    Latitude = c(40.9315, 40.9412), 
                    Longitude = c(-101.7670, -101.7659), 
-                   Kernel = NA))
+                   Kernels = NA))
 
 metadata <- bind_rows(meta_2014, meta_2015, meta_2016, meta_2017) %>%
   filter(!is.na(Latitude), !is.na(Longitude), !str_detect(Environment, "ON"))

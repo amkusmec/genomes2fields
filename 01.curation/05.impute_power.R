@@ -13,17 +13,36 @@ meta <- read_csv("data/metadata/metadata_clean.csv")
 weather_sites <- with(weather, paste(Environment, Year, sep = "_")) %>% unique()
 yield_sites <- with(yield, paste(Environment, Year, sep = "_")) %>% unique()
 meta_sites <- with(meta, paste(Environment, Year, sep = "_")) %>% unique()
-sites <- intersect(weather_sites, intersect(yield_sites, meta_sites))
+sites_ym <- intersect(yield_sites, meta_sites)
+sites <- intersect(weather_sites, sites_ym)
 
 weather <- weather %>%
   mutate(Site = paste(Environment, Year, sep = "_")) %>%
   filter(Site %in% sites)
 yield <- yield %>%
   mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  filter(Site %in% sites)
+  filter(Site %in% sites_ym)
 meta <- meta %>%
   mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  filter(Site %in% sites)
+  filter(Site %in% sites_ym)
+
+# Some additional filtering based on the availability of planting/harvest dates
+ph_sites <- yield %>%
+  group_by(Year, Environment) %>%
+  summarise(Planted = min(Planted, na.rm = TRUE), 
+            Harvested = max(Harvested, na.rm = TRUE)) %>%
+  ungroup() %>%
+  filter(!is.na(as.character(Planted)), !is.na(as.character(Harvested))) %>%
+  mutate(Site = paste(Environment, Year, sep = "_")) %>%
+  pull(Site) %>% 
+  unique()
+
+weather <- weather %>%
+  filter(Site %in% ph_sites)
+yield <- yield %>%
+  filter(Site %in% ph_sites)
+meta <- meta %>%
+  filter(Site %in% ph_sites)
 
 
 # Examine the quality of the solar radiation data -------------------------

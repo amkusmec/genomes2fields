@@ -109,3 +109,15 @@ munge <- munge %>%
   mutate(NET = PPT - ET)
 
 write_rds(munge, "data/weather/env_variables.rds")
+
+
+# Some plots of environmental variables -----------------------------------
+munge %>%
+  mutate(Site = paste(Environment, Year, sep = "_")) %>%
+  gather(Variable, Value, TMIN:NET) %>%
+  ggplot(., aes(x = Site, y = Value)) + 
+    theme_bw() + geom_boxplot() +
+    facet_wrap(~ Variable, scales = "free_y", ncol = 1, strip.position = "r") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("figures/select/evar_all_boxplots.pdf", width = 14, height = 12, 
+       units = "in", dpi = 300)
