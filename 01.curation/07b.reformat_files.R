@@ -9,6 +9,7 @@ families <- read_rds("../phenotype/yield_munged.rds") %>%
   pull(Pedigree) %>% str_split(., "/") %>% unlist(use.names = FALSE) %>%
   unique()
 families <- families[str_detect(families, "Z[0-9]{3}")]
+write_lines(families, "rils_to_keep.txt")
 families <- str_replace(families, "E[0-9]{4}", "") %>% unique()
 
 # We need data for families Z013 (KI3) and Z022 (OH43)

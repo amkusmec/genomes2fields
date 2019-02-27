@@ -5,7 +5,7 @@ library(parallel)
 # Get the combined GBS SNP file -------------------------------------------
 setwd("data/gbs")
 system(paste0("cp /media/analyses/SRP106367+SRP021921.Combined.Aaron.SNPs/", 
-              "SNPs/SRP106367+SRP021921.Combined.Aaron.SNPs_Matrix-20190129.", 
+              "SNPs/SRP106367+SRP021921.Combined.Aaron.SNPs_Matrix-20190222.", 
               "Recalled.genotypes.vcf.gz ./G2F_Ames_combined.vcf.gz"))
 system("gunzip G2F_Ames_combined.vcf.gz")
 setwd("../..")
@@ -48,6 +48,7 @@ parsed <- as_tibble(parsed) %>%
 
 # Only keep "true" duplicates; i.e., some samples have "DUP" in the name but
 # are the only remaining sample for that taxon
+names(parsed)[str_detect(names(parsed), "TR")] <- paste0("TR9_1_1_6_DUP", 1:2)
 duplicates <- which(str_detect(colnames(parsed), "DUP"))
 dup_table <- tibble(Taxa = str_replace(colnames(parsed)[duplicates], 
                                        "_DUP[0-9]{1,2}", ""),
@@ -81,3 +82,13 @@ combined <- dup_table %>%
 parsed <- parsed[, -dup_table$Column] %>%
   bind_cols(., combined)
 names(parsed) <- str_replace(names(parsed), "_DUP[0-9]{1,2}", "")
+
+
+# Split by chromosome for easier imputation -------------------------------
+parsed <- split(parsed, parsed$`#CHROM`)
+map(parsed, function(df) {
+  write_lines(header, paste0("data/gbs/G2F_Ames_combined_chrom", unique(df$`#CHROM`), ".vcf"))
+  write_tsv(df, paste0("data/gbs/G2F_Ames_combined_chrom", unique(df$`#CHROM`), ".vcf"), 
+            col_names = TRUE, append = TRUE)
+  NULL
+})
