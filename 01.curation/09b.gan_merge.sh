@@ -15,7 +15,10 @@ for i in `seq 1 10`; do
   ~/htslib/bgzip -d GAN_combined_chrom${i}.vcf.gz
   python3 ~/snptools/src/snpstat.py -i GAN_combined_chrom${i}.vcf \
     -o GAN_combined_chrom${i}.stat -mi 4
-  # Filter
-  # Rezip
-  # Reindex
+  python3 ~/snptools/src/filter.py -s GAN_combined_chrom${i}.stat \
+    -i GAN_combined_chrom${i}.vcf -o GAN_combined_chrom${i}_filt -mi 4 \
+    -n 0.9 -f 0.05 -ht 0.05
+  ~/htslib/bgzip GAN_combined_chrom${i}_filt.vcf
 done
+
+rm *filtered*

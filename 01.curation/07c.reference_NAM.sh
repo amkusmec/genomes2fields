@@ -64,6 +64,8 @@ for i in `seq 1 10`; do
   done
 done
 
+rm *mask*
+
 # Create reference genotypes for the NAM parents
 java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom1_filt.vcf out=NAM_reference_chrom1 nthreads=4
 java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom2_filt.vcf out=NAM_reference_chrom2 nthreads=4
