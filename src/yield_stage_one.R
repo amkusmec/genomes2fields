@@ -72,17 +72,34 @@ stage_one <- function(temp, r) {
   # Random effects selection
   if (!is.null(rterms)) {
     repeat {
-      rmodels <- lapply(seq_along(rterms), function(i) {
+      if (length(rterms) == 1) {
+        rmodels <- list()
         if (base_ran == "~ ") {
-          ran_form <- paste0("~ ", paste(rterms[-i], collapse = " + "))
+          rmodels[[1]] <- lm(as.formula(fix_form), data = temp)
         } else {
-          ran_form <- paste(base_ran, paste(rterms[-i], collapse = " + "), sep = " + ")
+          ran_form <- base_ran
+          rmodels[[1]] <- mmer(as.formula(fix_form), random = as.formula(ran_form), 
+                               rcov = ~ vs(units), data = temp, verbose = FALSE)
         }
-        mmer(as.formula(fix_form), random = as.formula(ran_form), 
-             rcov = ~ vs(units), data = temp, verbose = FALSE)
-      })
+      } else {
+        rmodels <- lapply(seq_along(rterms), function(i) {
+          if (base_ran == "~ ") {
+            ran_form <- paste0("~ ", paste(rterms[-i], collapse = " + "))
+          } else {
+            ran_form <- paste(base_ran, paste(rterms[-i], collapse = " + "), sep = " + ")
+          }
+          mmer(as.formula(fix_form), random = as.formula(ran_form), 
+               rcov = ~ vs(units), data = temp, verbose = FALSE)
+        })
+      }
       
-      bic <- c(base_model$BIC, sapply(rmodels, function(m) m$BIC))
+      bic <- c(base_model$BIC, sapply(rmodels, function(m) {
+        if (class(m) == "mmer") {
+          m$BIC
+        } else {
+          BIC(m)
+        }
+      }))
       idx <- which.min(bic)
       
       if (idx == 1) break
@@ -91,16 +108,16 @@ stage_one <- function(temp, r) {
       rterms <- rterms[-(idx - 1)]
       base_model <- rmodels[[idx - 1]]
       
-      if (is.null(rterms)) break
+      if (length(rterms) == 0) break
     }
     
-    if (base_ran == "~ " & is.null(rterms)) {
+    if (base_ran == "~ " & length(rterms) == 0) {
       base_model <- lm(as.formula(fix_form), data = temp)
-    } else if (base_ran != "~ " & is.null(rterms)) {
+    } else if (base_ran != "~ " & length(rterms) == 0) {
       ran_form <- base_ran
       base_model <- mmer(as.formula(fix_form), random = as.formula(ran_form), 
                          rcov = ~ vs(units), data = temp, verbose = FALSE)
-    } else if (base_ran == "~ " & !is.null(rterms)) {
+    } else if (base_ran == "~ " & length(rterms) > 0) {
       ran_form <- paste0("~ ", paste(rterms, collapse = " + "))
       base_model <- mmer(as.formula(fix_form), random = as.formula(ran_form), 
                          rcov = ~ vs(units), data = temp, verbose = FALSE)
@@ -114,11 +131,17 @@ stage_one <- function(temp, r) {
   if (!is.null(fterms)) {
     if (class(base_model) == "mmer") { # Fixed effects selection with random terms
       repeat {
-        fmodels <- lapply(seq_along(fterms), function(i) {
-          fix_form <- paste(base_fix, paste(fterms[-i], collapse = " + "), sep = " + ")
-          mmer(as.formula(fix_form), random = as.formula(ran_form), 
-               rcov = ~ vs(units), data = temp, verbose = FALSE)
-        })
+        if (length(fterms) == 1) {
+          fmodels <- list()
+          fmodels[[1]] <- mmer(as.formula(base_fix), random = as.formula(ran_form), 
+                               rcov = ~ vs(units), data = temp, verbose = FALSE)
+        } else {
+          fmodels <- lapply(seq_along(fterms), function(i) {
+            fix_form <- paste(base_fix, paste(fterms[-i], collapse = " + "), sep = " + ")
+            mmer(as.formula(fix_form), random = as.formula(ran_form), 
+                 rcov = ~ vs(units), data = temp, verbose = FALSE)
+          })
+        }
         
         bic <- c(base_model$BIC, sapply(fmodels, function(m) m$BIC))
         idx <- which.min(bic)
@@ -129,14 +152,19 @@ stage_one <- function(temp, r) {
         fterms <- fterms[-(idx - 1)]
         base_model <- fmodels[[idx - 1]]
         
-        if (is.null(fterms)) break
+        if (length(fterms) == 0) break
       }
     } else { # Fixed effects selection without random terms
       repeat {
-        fmodels <- lapply(seq_along(fterms), function(i) {
-          fix_form <- paste(base_fix, paste(fterms[-i], collapse = " + "), sep = " + ")
-          lm(as.formula(fix_form), data = temp)
-        })
+        if (length(fterms) == 1) {
+          fmodels <- list()
+          fmodels[[1]] <- lm(as.formula(base_fix), data = temp)
+        } else {
+          fmodels <- lapply(seq_along(fterms), function(i) {
+            fix_form <- paste(base_fix, paste(fterms[-i], collapse = " + "), sep = " + ")
+            lm(as.formula(fix_form), data = temp)
+          })
+        }
         
         bic <- c(BIC(base_model), sapply(fmodels, BIC))
         idx <- which.min(bic)
@@ -147,11 +175,11 @@ stage_one <- function(temp, r) {
         fterms <- fterms[-(idx - 1)]
         base_model <- fmodels[[idx - 1]]
         
-        if (is.null(fterms)) break
+        if (length(fterms) == 0) break
       }
     }
     
-    if (is.null(fterms)) {
+    if (length(fterms) == 0) {
       fix_form <- base_fix
     } else {
       fix_form <- paste(base_fix, paste(fterms, collapse = " + "), sep = " + ")

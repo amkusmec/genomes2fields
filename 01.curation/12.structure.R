@@ -79,3 +79,24 @@ write_rds(nmds, "data/gbs/nmds.rds")
 # PCA for population structure --------------------------------------------
 pca <- prcomp(GD, center = TRUE, scale = TRUE)
 write_rds(pca, "data/gbs/pca.rds")
+
+var_exp <- pca$sdev^2
+var_exp <- var_exp/sum(var_exp)
+tibble(PCs = seq_along(var_exp), 
+       VExp = var_exp) %>%
+  filter(PCs <= 20) %>%
+  ggplot(., aes(x = PCs, y = VExp)) + theme_classic() +
+    geom_point(size = 3) + geom_line(linetype = 2) +
+    geom_hline(yintercept = 0.02, linetype = 3) +
+    labs(x = "PC", y = "Variance Explained") +
+    scale_y_continuous(labels = scales::percent)
+ggsave("figures/munge/scree_plot.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+as_tibble(pca$x[, 1:2]) %>%
+  ggplot(., aes(x = PC1, y = PC2)) + theme_classic() +
+    geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    labs(x = "PC1 (30.4%)", y = "PC2 (4.9%)")
+ggsave("figures/munge/pc1_2.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+write_rds(pca$x[, 1:10], "data/gbs/pca_covariates.rds")

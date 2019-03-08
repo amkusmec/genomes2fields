@@ -20,14 +20,21 @@ variables <- yield %>%
 
 # Compute stage one estimates of hybrid effects ---------------------------
 res <- list()
-for (i in 1:nrow(variables)) {
+for (i in c(1:41, 43, 44, 46:53, 55:58, 60:64)) {
   r <- variables[i, ]
   temp <- filter(yield, Environment == r$Environment[1], Year == r$Year[1]) %>%
     mutate(Replicate = as.character(Replicate), 
            Block = paste(Replicate, Block, sep = "_"), 
            Rowf = as.character(Row), 
            Colf = as.character(Column))
+  cat(temp$Site[1], "\n")
   res[[temp$Site[1]]] <- stage_one(temp, r)
 }
 
 write_rds(res, "data/phenotype/yield_stage_one.rds")
+
+### Some manual modifications
+###  - NEH1_2015 = include only spl2D(Row, Column)
+###  - NEH3_2015 = include Rowf and spl2D(Row, Column)
+###  - OHH1_2015 = remove RootLodging from consideration
+###  - TXH2_2017 = remove Replicate == "0"
