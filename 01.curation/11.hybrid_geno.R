@@ -204,6 +204,10 @@ for (i in seq_along(maf)) {
 
 # Augment GM
 GM$maf <- maf
+ggplot(GM, aes(x = maf)) + theme_classic() +
+  geom_histogram(binwidth = 0.01, fill = "orange", alpha = 0.8, colour = "black") +
+  labs(x = "Minor Allele Frequency", y = "Count")
+ggsave("figures/munge/maf.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 
 # Save the final tables ---------------------------------------------------
