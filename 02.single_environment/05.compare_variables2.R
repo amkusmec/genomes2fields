@@ -4,31 +4,45 @@ library(readxl)
 
 # Compare variable inclusion ----------------------------------------------
 vars1 <- read_xlsx("data/variable_inclusion.xlsx", na = "NA", skip = 1)
-vars2 <- read_xlsx("data/variable_inclusion_gbs.xlsx", na = "NA", skip = 1)
+vars2 <- read_xlsx("data/variable_inclusion_40.xlsx", na = "NA", skip = 1)
 
 # How many sites include each variable?
 counts1 <- apply(vars1[, 3:8], 2, table)
 counts2 <- apply(vars2[, 3:8], 2, table)
-counts2 <- do.call("cbind", counts2)
-counts2[2, 3] <- 0
 
-# Compare each site
-similarity <- sapply(1:nrow(vars1), function(i) {
-  all.equal(as.vector(t(vars1[i, ])), as.vector(t(vars2[i, ])))
+# How many sites with variable changes?
+na1 <- apply(vars1[, 3:8], 1, function(x) sum(is.na(x)))
+na2 <- apply(vars2[, 3:8], 1, function(x) sum(is.na(x)))
+
+sum(na1 != na2)
+
+# How many variables were imputed per site?
+table(na1 - na2)
+
+# How many times was each variable imputed?
+imputed <- sapply(3:5, function(i) {
+  sum(is.na(vars1[[i]]) != is.na(vars2[[i]]))
 })
 
+# Similarities accounting for changes in missing variables
+similarity <- sapply(which(na1 != na2), function(i) {
+  all.equal(as.vector(t(vars1[i, 6:8])), as.vector(t(vars2[i, 6:8])))
+})
 table(similarity)
-nrow(vars1) - sum(similarity == "TRUE")
 
-# Compare each variable
-var_sim <- sapply(3:8, function(i) sum(vars1[, i] == vars2[, i], na.rm = TRUE))
-non_missing <- sapply(3:8, function(i) sum(!is.na(vars1[, i]) & !is.na(vars2[, i])))
-non_missing - var_sim
+idx <- which(na1 != na2)[similarity != "TRUE"]
+vars1[idx, ]; vars2[idx, ]
+
+# For added variables, how many were included?
+added <- sapply(3:5, function(i) {
+  sum(vars2[[i]][is.na(vars1[[i]]) != is.na(vars2[[i]])] == "+")
+})
+added
 
 
 # Compare hybrid BLUEs ----------------------------------------------------
 res1 <- read_rds("data/phenotype/yield_stage_one.rds")
-res2 <- read_rds("data/phenotype/yield_stage_one_gbs.rds")
+res2 <- read_rds("data/phenotype/yield_stage_one_40.rds")
 
 blue_cor <- sapply(seq_along(res1), function(i) {
   temp <- inner_join(res1[[i]]$blue, res2[[i]]$blue, by = "PedigreeNew")
@@ -41,7 +55,7 @@ tibble(Site = names(res1), Pearson = blue_cor) %>%
   ggplot(., aes(x = Site, y = Pearson)) + theme_classic() +
     geom_point(size = 3) + labs(y = "r") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("figures/single/blue_cor_all_gbs.pdf", width = 10, height = 5, 
+ggsave("figures/single/blue_cor_all_40.pdf", width = 10, height = 5, 
        units = "in", dpi = 300)
 
 blue_rank <- sapply(seq_along(res1), function(i) {
@@ -55,7 +69,7 @@ tibble(Site = names(res1), Kendall = blue_rank) %>%
   ggplot(., aes(x = Site, y = Kendall)) + theme_classic() +
     geom_point(size = 3) + labs(y = expression(tau)) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("figures/single/blue_rank_all_gbs.pdf", width = 10, height = 5, 
+ggsave("figures/single/blue_rank_all_40.pdf", width = 10, height = 5, 
        units = "in", dpi = 300)
 
 abs_diff <- sapply(seq_along(res1), function(i) {
@@ -63,30 +77,23 @@ abs_diff <- sapply(seq_along(res1), function(i) {
   median(abs(temp[[2]] - temp[[3]]))
 })
 
-tibble(Site = names(res1), MSD = abs_diff, Similarity = similarity) %>%
+tibble(Site = names(res1), MSD = abs_diff) %>%
   arrange(MSD) %>%
   mutate(MSD = log10(MSD), 
          Site = factor(Site, levels = Site, ordered = TRUE), 
-         Similarity = if_else(str_detect(Similarity, "1"), "1", 
-                              if_else(str_detect(Similarity, "2"), "2", 
-                                      if_else(str_detect(Similarity, "3"), "3", "0"))),
-         Size = sapply(res2, function(x) nrow(x$blue))/
-           sapply(res1, function(x) nrow(x$blue))) %>%
-  ggplot(., aes(x = Site, y = MSD, colour = Similarity, shape = Similarity, size = Size)) + 
-    theme_classic() + geom_point() + 
+         Imputed = factor(na1 - na2)) %>%
+  ggplot(., aes(x = Site, y = MSD, colour = Imputed, size = Imputed)) +
+    theme_classic() + geom_point() + geom_hline(yintercept = 0, linetype = 2) +
     labs(y = expression(paste(log[10], "(Median Absolute Difference)"))) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     scale_colour_brewer(type = "qual", palette = "Dark2")
-ggsave("figures/single/blue_diff_all_gbs.pdf", width = 10, height = 5, 
+ggsave("figures/single/blue_diff_all_40.pdf", width = 10, height = 5, 
        units = "in", dpi = 300)
 
 
 # Compare VCOV matrices ---------------------------------------------------
 rs <- lapply(seq_along(res1), function(i) {
-  hybrids <- rownames(res2[[i]]$vcov)
-  temp <- res1[[i]]$vcov
-  evolqg::RandomSkewers(temp[rownames(temp) %in% hybrids, colnames(temp) %in% hybrids], 
-                        res2[[i]]$vcov, num.vectors = 1e4)
+  evolqg::RandomSkewers(res1[[i]]$vcov, res2[[i]]$vcov, num.vectors = 1e4)
 })
 rs <- tibble(Site = names(res1), 
              Corr = sapply(rs, function(x) x[1]), 
@@ -99,7 +106,7 @@ arrange(rs, Corr) %>%
     geom_pointrange(aes(ymin = Corr - SD, ymax = Corr + SD)) +
     labs(y = "Random Skewer Correlation") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("figures/single/vcov_corr_all_gbs.pdf", width = 10, height = 5, 
+ggsave("figures/single/vcov_corr_all_40.pdf", width = 10, height = 5, 
        units = "in", dpi = 300)
 
 tibble(Site = names(res1), 
@@ -109,22 +116,21 @@ tibble(Site = names(res1),
     geom_point(size = 2) +
     labs(x = expression(paste(log[10], "(Median Absolute Difference)")), 
          y = "Random Skewer Correlation")
-ggsave("figures/single/mad_vs_corr_all_gbs.pdf", width = 6, height = 4, 
+ggsave("figures/single/mad_vs_corr_all_40.pdf", width = 6, height = 4, 
        units = "in", dpi = 300)
 
 
-# Examine some particularly different sites -------------------------------
-# names(abs_diff) <- names(res1)
-# head(sort(abs_diff, decreasing = TRUE))
-# 
-# hybrids <- lapply(res2, function(x) rownames(x$vcov)) %>%
-#   unlist(use.names = FALSE) %>% unique()
-# yield <- read_rds("data/phenotype/yield_agron0.rds") %>%
-#   mutate(GBS = PedigreeNew %in% hybrids)
-# 
-# filter(yield, Site == "TXH2_2014") %>%
-#   ggplot(., aes(x = Column, y = Row, fill = Yield)) + theme_classic() +
-#     geom_tile(aes(size = GBS, colour = GBS)) +
-#     scale_size_manual(values = c("FALSE" = 1, "TRUE" = 2)) +
-#     scale_colour_manual(values = c("FALSE" = "black", "TRUE" = "yellow"))
-# ggsave("figures/single/TXH2_2014.pdf", width = 8, height = 5, units = "in", dpi = 300)
+# Some very different sites -----------------------------------------------
+tibble(No = res1$NYH2_2014$blue$BLUE, 
+       Yes = res2$NYH2_2014$blue$BLUE) %>%
+  ggplot(., aes(x = No, y = Yes)) + theme_classic() +
+    geom_point(alpha = 0.8) + labs(x = "No Imputation", y = "Imputation") +
+    geom_abline(intercept = 0, slope = 1, linetype = 2, colour = "red") +
+    ggtitle("NYH2_2014")
+
+tibble(No = res1$MOH2_2014$blue$BLUE, 
+       Yes = res2$MOH2_2014$blue$BLUE) %>%
+  ggplot(., aes(x = No, y = Yes)) + theme_classic() +
+    geom_point(alpha = 0.8) + labs(x = "No Imputation", y = "Imputation") +
+    geom_abline(intercept = 0, slope = 1, linetype = 2, colour = "red") +
+    ggtitle("MOH2_2014")

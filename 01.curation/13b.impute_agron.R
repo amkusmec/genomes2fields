@@ -22,13 +22,13 @@ missing <- yield %>%
 
 # Identify sites without 100% coverage
 stand_0 <- missing %>%
-  filter(!near(0, Stand)) %>%
+  filter(Stand == 0) %>%
   pull(Site)
 stalk_0 <- missing %>%
-  filter(!near(0, StalkLodging)) %>%
+  filter(StalkLodging == 0) %>%
   pull(Site)
 root_0 <- missing %>%
-  filter(!near(0, RootLodging)) %>%
+  filter(RootLodging == 0) %>%
   pull(Site)
 
 # Identify sites with at least 40% coverage
@@ -45,17 +45,17 @@ root_40 <- missing %>%
 
 # Modified yield table for 100% coverage sites ----------------------------
 yield %>%
-  mutate(Stand = if_else(Site %in% stand_0, as.integer(NA), Stand), 
-         StalkLodging = if_else(Site %in% stalk_0, as.integer(NA), StalkLodging), 
-         RootLodging = if_else(Site %in% root_0, as.integer(NA), RootLodging)) %>%
+  mutate(Stand = if_else(Site %in% stand_0, Stand, as.integer(NA)), 
+         StalkLodging = if_else(Site %in% stalk_0, StalkLodging, as.integer(NA)), 
+         RootLodging = if_else(Site %in% root_0, RootLodging, as.integer(NA))) %>%
   write_rds(., "data/phenotype/yield_agron0.rds")
 
 
 # Imputation for 40% coverage sites ---------------------------------------
 yield <- yield %>%
-  mutate(Stand = if_else(!(Site %in% stand_40), as.integer(NA), Stand), 
-         StalkLodging = if_else(!(Site %in% stalk_40), as.integer(NA), StalkLodging), 
-         RootLodging = if_else(!(Site %in% root_40), as.integer(NA), RootLodging))
+  mutate(Stand = if_else(Site %in% stand_40, Stand, as.integer(NA)), 
+         StalkLodging = if_else(Site %in% stalk_40, StalkLodging, as.integer(NA)), 
+         RootLodging = if_else(Site %in% root_40, RootLodging, as.integer(NA)))
 
 # Remove sites without complete field layout information
 no_field <- yield %>%
@@ -66,14 +66,18 @@ no_field <- yield %>%
   filter(Row > 0, Column > 0) %>%
   pull(Site)
 
-yield <- yield %>%
-  mutate(Stand = if_else(Site %in% no_field, as.integer(NA), Stand), 
-         StalkLodging = if_else(Site %in% no_field, as.integer(NA), StalkLodging), 
-         RootLodging = if_else(Site %in% no_field, as.integer(NA), RootLodging))
+stand_40_n <- intersect(stand_40, setdiff(no_field, stand_0))
+stalk_40_n <- intersect(stalk_40, setdiff(no_field, stalk_0))
+root_40_n <- intersect(root_40, setdiff(no_field, root_0))
 
-stand_40 <- setdiff(stand_40, no_field)
-stalk_40 <- setdiff(stalk_40, no_field)
-root_40 <- setdiff(root_40, no_field)
+stand_40 <- setdiff(stand_40, union(stand_0, no_field))
+stalk_40 <- setdiff(stalk_40, union(stalk_0, no_field))
+root_40 <- setdiff(root_40, union(root_0, no_field))
+
+yield <- yield %>%
+  mutate(Stand = if_else(Site %in% stand_40_n, as.integer(NA), Stand), 
+         StalkLodging = if_else(Site %in% stalk_40_n, as.integer(NA), StalkLodging), 
+         RootLodging = if_else(Site %in% root_40_n, as.integer(NA), RootLodging))
 
 # Impute stand count
 for (i in stand_40) {
