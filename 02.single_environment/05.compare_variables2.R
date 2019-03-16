@@ -23,6 +23,7 @@ table(na1 - na2)
 imputed <- sapply(3:5, function(i) {
   sum(is.na(vars1[[i]]) != is.na(vars2[[i]]))
 })
+imputed
 
 # Similarities accounting for changes in missing variables
 similarity <- sapply(which(na1 != na2), function(i) {
@@ -77,11 +78,10 @@ abs_diff <- sapply(seq_along(res1), function(i) {
   median(abs(temp[[2]] - temp[[3]]))
 })
 
-tibble(Site = names(res1), MSD = abs_diff) %>%
+tibble(Site = names(res1), MSD = abs_diff, Imputed = factor(na1 - na2)) %>%
   arrange(MSD) %>%
-  mutate(MSD = log10(MSD), 
-         Site = factor(Site, levels = Site, ordered = TRUE), 
-         Imputed = factor(na1 - na2)) %>%
+  mutate(MSD = log10(MSD + 1e-3), 
+         Site = factor(Site, levels = Site, ordered = TRUE)) %>%
   ggplot(., aes(x = Site, y = MSD, colour = Imputed, size = Imputed)) +
     theme_classic() + geom_point() + geom_hline(yintercept = 0, linetype = 2) +
     labs(y = expression(paste(log[10], "(Median Absolute Difference)"))) +
@@ -134,3 +134,6 @@ tibble(No = res1$MOH2_2014$blue$BLUE,
     geom_point(alpha = 0.8) + labs(x = "No Imputation", y = "Imputation") +
     geom_abline(intercept = 0, slope = 1, linetype = 2, colour = "red") +
     ggtitle("MOH2_2014")
+
+# These are all instances where variables were imputed and then included in the 
+# final model.
