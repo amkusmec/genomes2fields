@@ -7,14 +7,15 @@ GD <- hyb$GD
 
 
 # Dissimilarity matrix ----------------------------------------------------
-dis <- matrix(0, nrow = nrow(GD), ncol = nrow(GD))
-m <- 1/ncol(GD)
-for (i in 2:nrow(dis)) {
-  for (j in 1:(i - 1)) {
-    dis[i, j] <- dis[j, i] <- sqrt(sum(m*(GD[i, ] - GD[j, ])^2))
-  }
-}
-write_rds(dis, "data/gbs/dissim.rds")
+### Can be run in the background with data/gbs/dissim.R
+# dis <- matrix(0, nrow = nrow(GD), ncol = nrow(GD))
+# m <- 1/ncol(GD)
+# for (i in 2:nrow(dis)) {
+#   for (j in 1:(i - 1)) {
+#     dis[i, j] <- dis[j, i] <- sqrt(sum(m*(GD[i, ] - GD[j, ])^2))
+#   }
+# }
+# write_rds(dis, "data/gbs/dissim.rds")
 
 
 # Identify reciprocal hybrids ---------------------------------------------
@@ -77,8 +78,10 @@ write_rds(nmds, "data/gbs/nmds.rds")
 
 
 # PCA for population structure --------------------------------------------
-pca <- prcomp(GD, center = TRUE, scale = TRUE)
-write_rds(pca, "data/gbs/pca.rds")
+### Can be run in the background with data/gbs/pca.R
+# pca <- prcomp(GD, center = TRUE, scale = TRUE)
+# write_rds(pca, "data/gbs/pca.rds")
+pca <- read_rds("data/gbs/pca.rds")
 
 var_exp <- pca$sdev^2
 var_exp <- var_exp/sum(var_exp)
@@ -96,7 +99,8 @@ as_tibble(pca$x[, 1:2]) %>%
   ggplot(., aes(x = PC1, y = PC2)) + theme_classic() +
     geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
     geom_vline(xintercept = 0, linetype = 2) +
-    labs(x = "PC1 (30.4%)", y = "PC2 (4.9%)")
+    labs(x = "PC1 (17.3%)", y = "PC2 (5.6%)")
 ggsave("figures/munge/pc1_2.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
-write_rds(pca$x[, 1:10], "data/gbs/pca_covariates.rds")
+# All PCs that explain >= 2% of the variance
+write_rds(pca$x[, 1:9], "data/gbs/pca_covariates.rds")

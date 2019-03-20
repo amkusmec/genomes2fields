@@ -4,13 +4,7 @@ library(mgcv)
 
 
 # Keep plot records only from sites with weather data ---------------------
-sites <- read_rds("data/weather/weather_prism.rds") %>%
-  mutate(Site = paste(Environment, Year, sep = "_")) %>% 
-  pull(Site) %>%
-  unique()
-yield <- read_rds("data/phenotype/yield_munged.rds") %>%
-  mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  filter(Site %in% sites)
+yield <- read_rds("data/phenotype/yield_augment.rds")
 
 cor(yield[, c("Yield", "Stand", "StalkLodging", "RootLodging")], use = "complete")
 
@@ -32,7 +26,7 @@ missing %>%
                                  "RootLodging" = "blue")) +
     facet_wrap(~ Parameter) + guides(fill = FALSE) + 
     labs(x = "Proportion Missing Plots", y = "Count") +
-    ggtitle("N = 46 location-years")
+    ggtitle("N = 64 location-years")
 ggsave("figures/munge/missing_agronomy.pdf", width = 8, height = 5, units = "in", dpi = 300)
 
 

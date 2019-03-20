@@ -5,7 +5,7 @@ library(tidyverse)
 pca <- read_rds("data/gbs/pca_covariates.rds") %>%
   as_tibble(rownames = "Pedigree") %>%
   separate(Pedigree, c("Parent1", "Parent2"), sep = "/", remove = FALSE) %>%
-  mutate(Group = if_else(PC1 < 0, "1", "2"))
+  mutate(Group = if_else(PC1 < 125, "1", "2"))
 
 table(pca$Group)
 
@@ -17,38 +17,39 @@ ggplot(pca, aes(x = PC1, y = PC2, colour = Group)) + theme_classic() +
   geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) + guides(colour = FALSE) +
   scale_colour_manual(values = c("1" = "red", "2" = "blue")) +
-  labs(x = "PC1 (30.4%)", y = "PC2 (4.9%)")
+  labs(x = "PC1 (17.3%)", y = "PC2 (5.6%)")
 ggsave("figures/munge/pc1_2.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 ggplot(pca, aes(x = PC1, y = PC3, colour = Group)) + theme_classic() +
   geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) + guides(colour = FALSE) +
   scale_colour_manual(values = c("1" = "red", "2" = "blue")) +
-  labs(x = "PC1 (30.4%)", y = "PC3 (3.8%)")
+  labs(x = "PC1 (17.3%)", y = "PC3 (5.0%)")
 
 ggplot(pca, aes(x = PC1, y = PC4, colour = Group)) + theme_classic() +
   geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) + guides(colour = FALSE) +
   scale_colour_manual(values = c("1" = "red", "2" = "blue")) +
-  labs(x = "PC1 (30.4%)", y = "PC4 (3.6%)")
+  labs(x = "PC1 (17.3%)", y = "PC4 (4.1%)")
 
 ggplot(pca, aes(x = PC2, y = PC3, colour = Group)) + theme_classic() +
   geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) + guides(colour = FALSE) +
   scale_colour_manual(values = c("1" = "red", "2" = "blue")) +
-  labs(x = "PC2 (4.9%)", y = "PC3 (3.8%)")
+  labs(x = "PC2 (5.6%)", y = "PC3 (5.0%)")
 
 ggplot(pca, aes(x = PC2, y = PC4, colour = Group)) + theme_classic() +
   geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) + guides(colour = FALSE) +
   scale_colour_manual(values = c("1" = "red", "2" = "blue")) +
-  labs(x = "PC2 (4.9%)", y = "PC4 (3.6%)")
+  labs(x = "PC2 (5.6%)", y = "PC4 (4.1%)")
+ggsave("figures/munge/pc2_4.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 ggplot(pca, aes(x = PC3, y = PC4, colour = Group)) + theme_classic() +
   geom_point(alpha = 0.8) + geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) + guides(colour = FALSE) +
   scale_colour_manual(values = c("1" = "red", "2" = "blue")) +
-  labs(x = "PC3 (3.8%)", y = "PC4 (3.6%)")
+  labs(x = "PC3 (5.0%)", y = "PC4 (4.1%)")
 ggsave("figures/munge/pc3_4.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 
@@ -100,7 +101,7 @@ tibble(Type = rep(c("NAM", "Other"), each = length(nmaf)),
     geom_histogram(alpha = 0.6, binwidth = 0.01, colour = "black") + 
     labs(x = "Minor Allele Frequency", y = "Count", fill = "") +
     scale_fill_manual(values = c("NAM" = "blue", "Other" = "red")) +
-    facet_wrap(~ Type, ncol = 1)
+    facet_wrap(~ Type, ncol = 1, strip.position = "right")
 ggsave("figures/munge/structure_maf.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 summary(nmaf)
@@ -118,3 +119,24 @@ hmp2_snps <- read_tsv("data/gbs/HapMap2/maizeHapMapV2_recode.vcf", comment = "##
 hmp2_snps <- hmp2_snps[!duplicated(hmp2_snps)]
 
 sum(names(omaf)[omaf == 0] %in% hmp2_snps)
+
+
+# Inter-SNP distance ------------------------------------------------------
+GM <- read_rds("data/gbs/add_snps.rds")$GM
+
+GM <- GM %>%
+  split(., .$Chromosome) %>%
+  map_df(function(df) {
+    mutate(df, Distance = c(0, Position[-1] - Position[-length(Position)]))
+  })
+
+GM %>%
+  mutate(Chromosome = factor(Chromosome), 
+         Distance = log10(Distance)) %>%
+  ggplot(., aes(x = Distance)) + theme_classic() +
+    geom_density(aes(colour = Chromosome, group = Chromosome)) +
+    labs(y = "Density", x = expression(paste(log[10], "(Distance)")))
+ggsave("figures/munge/snp_distance.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+GM %>% split(., .$Chromosome) %>%
+  map_dbl(function(df) quantile(df$Distance, probs = 0.95))

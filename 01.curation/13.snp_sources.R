@@ -39,10 +39,12 @@ tibble(Source = c("G2F", "Ames", "NAM", "HapMap1", "HapMap2", "RNA-seq"),
                     sum(hmp1_snps %in% kept)/length(hmp1_snps), 
                     sum(hmp2_snps %in% kept)/length(hmp2_snps), 
                     sum(rna_snps %in% kept)/length(rna_snps)), 
-       Removed = 1 - Retained) %>%
+       Removed = 1 - Retained, 
+       Percentage = paste0(round(100*Retained, 0), "%")) %>%
   gather(Action, Proportion, Retained:Removed) %>%
   ggplot(., aes(x = Source, y = Proportion, fill = Action)) + theme_classic() +
     geom_col(colour = "black") + labs(x = "", y = "", fill = "") +
+    geom_label(aes(label = Percentage), y = 0.75, fill = "white", size = 3) +
     scale_fill_manual(values = c("Retained" = "green", "Removed" = "red")) +
     scale_y_continuous(labels = scales::percent)
 ggsave("figures/munge/snp_sources.pdf", width = 6, height = 4, units = "in", dpi = 300)
@@ -75,6 +77,7 @@ sources <- tibble(SNP = raw_kept) %>%
                                   if_else(SNP %in% nam_snps, "NAM", 
                                           if_else(SNP %in% rna_snps, "RNA-seq", 
                                                   if_else(SNP %in% hmp1_snps, "HapMap1", "HapMap2"))))))
+
 count(sources, Source) %>%
   mutate(n = n/sum(n)) %>%
   ggplot(., aes(x = factor(1), y = n)) + theme_classic() +

@@ -3,13 +3,7 @@ library(mgcv)
 
 
 # Keep plot records only from sites with weather data ---------------------
-sites <- read_rds("data/weather/env_variables.rds") %>%
-  mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  pull(Site) %>%
-  unique()
-yield <- read_rds("data/phenotype/yield_augment.rds") %>%
-  mutate(Site = paste(Environment, Year, sep = "_")) %>%
-  filter(Site %in% sites)
+yield <- read_rds("data/phenotype/yield_augment.rds")
 
 
 # Identify sites for imputation -------------------------------------------
