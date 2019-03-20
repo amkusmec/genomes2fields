@@ -55,12 +55,27 @@ yield <- yield %>%
            str_to_upper() %>%
            str_replace_all(., "\\.", "") %>% str_replace_all(., "-", "_"), 
          PedigreeNew = paste(Female, Male, sep = "/"))
+
+# Change some reciprocal hybrids and remove one self cross
+yield <- yield %>%
+  mutate(PedigreeNew2 = paste(Male, Female, sep = "/"), 
+         Test = PedigreeNew2 %in% intersect(PedigreeNew, PedigreeNew2),
+         PedigreeNew = if_else(Test, 
+                               if_else(Male >= Female, paste(Male, Female, collapse = "/"), 
+                                       paste(Female, Male, collapse = "/")), 
+                               PedigreeNew), 
+         Female = str_split(PedigreeNew, "/") %>% sapply(., function(x) x[1]),
+         Male = str_split(PedigreeNew, "/") %>% sapply(., function(x) x[2])) %>%
+  select(-PedigreeNew2, -Test) %>%
+  filter(PedigreeNew != "PHB47/PHB47")
+
+# Keep the inbred parents
 inbreds <- c(pull(yield, Female), pull(yield, Male)) %>%
   unique() %>% sort()
 
 
 # Load the GBS files ------------------------------------------------------
-gbs <- list.files("data/gbs", "GAN_reference_chrom[0-9]{1,2}_filt.vcf", 
+gbs <- list.files("data/gbs", "GAN_reference_chrom[0-9]{1,2}.vcf", 
                   full.names = TRUE) %>%
   map_df(read_tsv, comment = "##") %>%
   arrange(`#CHROM`, POS)
@@ -99,6 +114,21 @@ gbs <- apply(gbs, 2, function(x) {
   if_else(x == "0|0", 0, 
           if_else(x == "0|1" | x == "1|0", 1, 2))
 })
+rownames(gbs) <- taxa
+
+
+# Keep only SNPs that are segregating in both panels ----------------------
+idx <- which(str_detect(rownames(gbs), "Z[0-9]{3}E[0-9]{4}"))
+
+seg_nam <- apply(gbs[idx, ], 2, function(x) length(unique(x)))
+seg_nam <- names(seg_nam)[seg_nam > 1]
+
+seg_g2f <- apply(gbs[-idx, ], 2, function(x) length(unique(x)))
+seg_g2f <- names(seg_g2f)[seg_g2f > 1]
+
+seg <- intersect(seg_nam, seg_g2f)
+gbs <- gbs[, colnames(gbs) %in% seg]
+GM <- filter(GM, SNP %in% seg)
 
 
 # Create synthetic hybrid genotypes ---------------------------------------
@@ -172,14 +202,14 @@ hyb <- hyb[rownames(hyb) %in% gbs_hyb, ]
 # Apply QC filters --------------------------------------------------------
 # Remove monomorphic SNPs
 n_alleles <- apply(hyb, 2, function(x) length(unique(x)))
-sum(n_alleles <= 1) # 32
+sum(n_alleles <= 1) # 6
 hyb <- hyb[, n_alleles > 1]
 geno17 <- geno17[, n_alleles > 1]
 GM <- GM[n_alleles > 1, ]
 
 # Remove SNPs with MAF < 0.025
 maf <- apply(hyb, 2, function(x) sum(x)/(2*length(x)))
-sum(maf < 0.025 | maf > 1 - 0.025) # 866,060
+sum(maf < 0.025 | maf > 1 - 0.025) # 102,848
 hyb <- hyb[, maf >= 0.025 & maf <= 1 - 0.025]
 geno17 <- geno17[, maf >= 0.025 & maf <= 1 - 0.025]
 GM <- GM[maf >= 0.025 & maf <= 1 - 0.025, ]

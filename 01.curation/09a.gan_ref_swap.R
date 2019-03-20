@@ -7,7 +7,7 @@ cl <- makeCluster(detectCores())
 clusterEvalQ(cl, library(tidyverse))
 
 
-for (i in 2:10) {
+for (i in 1:10) {
   cat("+ Chromosome", i, "\n")
   system(paste0("gunzip NAM_imputed_chrom", i, ".vcf.gz"))
   reference <- paste0("NAM_imputed_chrom", i, ".vcf") %>%
