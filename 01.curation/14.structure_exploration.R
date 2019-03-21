@@ -140,3 +140,97 @@ ggsave("figures/munge/snp_distance.pdf", width = 6, height = 4, units = "in", dp
 
 GM %>% split(., .$Chromosome) %>%
   map_dbl(function(df) quantile(df$Distance, probs = 0.95))
+
+
+# Non-segregating SNPs and PC loadings ------------------------------------
+# Identify non-segregating sites
+nseg_nam <- which(nmaf == 0)
+nseg_oth <- which(omaf == 0)
+nseg <- union(nseg_nam, nseg_oth) %>% sort()
+
+# Genomic distribution of non-segregating SNPs
+chrom <- GM %>%
+  group_by(Chromosome) %>%
+  summarise(Length = max(Position)/1e6) %>%
+  ungroup()
+
+GM <- GM %>%
+  mutate(NSeg = if_else(row_number() %in% nseg_nam, "NAM", 
+                        if_else(row_number() %in% nseg_oth, "G2F", "Segregating")))
+
+GM %>% mutate(Position = Position/1e6) %>%
+  filter(NSeg != "Segregating") %>%
+  ggplot() + theme_classic() + labs(x = "Chromosome", y = "Position (Mbp)", colour = "") +
+    geom_rect(aes(xmin = Chromosome - 0.25, xmax = Chromosome + 0.25, 
+                  ymax = Length + 100/1e6), data = chrom, ymin = 0, colour = "black", 
+              fill = "white") +
+    geom_segment(aes(x = Chromosome - 0.2, xend = Chromosome + 0.2, 
+                     y = Position, yend = Position, colour = NSeg), size = 0.1) +
+    scale_colour_manual(values = c("NAM" = "#1F78B4", "G2F" = "#B2DF8A")) +
+    scale_x_continuous(breaks = 1:10)
+ggsave("figures/munge/nonsegregating_distribution.pdf", width = 8, height = 6, 
+       units = "in", dpi = 300)
+
+# Density quantiles for sub-populations without non-segregating SNPs
+# NAM
+GM %>% 
+  filter(NSeg != "NAM") %>%
+  split(., .$Chromosome) %>%
+  map_dbl(function(df) quantile(df$Distance, probs = 0.95))
+
+# G2F
+GM %>%
+  filter(NSeg != "G2F") %>%
+  split(., .$Chromosome) %>%
+  map_dbl(function(df) quantile(df$Distance, probs = 0.95))
+
+
+pc <- read_rds("data/gbs/pca.rds")
+pc1_loadings <- pc$rotation[, 1]
+
+# Fun but relatively uninformative plot
+GM %>%
+  mutate(PC1 = pc1_loadings, 
+         Position = Position/1e6) %>%
+  ggplot(.) + theme_classic() + 
+    geom_segment(aes(x = Position, y = 0, xend = Position, yend = PC1, 
+                     colour = NSeg, size = NSeg)) +
+    scale_colour_manual(values = c("NAM" = "#1F78B4", "G2F" = "#B2DF8A", 
+                                   "Segregating" = "grey80")) +
+    scale_size_manual(values = c("NAM" = 0.3, "G2F" = 0.3, "Segregating" = 0.1)) +
+    labs(x = "Position (Mbp)", y = "PC1 Loading") + facet_wrap(~ Chromosome)
+
+GM %>% mutate(PC1 = pc1_loadings) %>%
+  ggplot(., aes(x = PC1, group = NSeg, colour = NSeg)) + theme_classic() +
+    geom_density() + facet_wrap(~ Chromosome, scales = "free") +
+    scale_colour_manual(values = c("NAM" = "#1F78B4", "G2F" = "#B2DF8A", 
+                                   "Segregating" = "grey80")) +
+    labs(x = "PC1 Loading", y = "Density", colour = "")
+ggsave("figures/munge/pc1_loadings_density.pdf", width = 10, height = 6, 
+       units = "in", dpi = 300)
+
+
+# k-means clustering ------------------------------------------------------
+group1 <- pca %>%
+  filter(Group == "1") %>%
+  select(Pedigree:Parent2, PC2, PC4)
+
+km <- sapply(2:10, function(x) kmeans(group1[, 4:5], centers = x, 
+                                      iter.max = 50, nstart = 10), 
+             simplify = FALSE)
+opt_clust <- which.min(map_dbl(km, function(x) x$tot.withinss))
+
+# Optimal number of clusters is 10 (at least), but 6 is easier to illustrate 
+# the relevant structure in the population.
+group1 <- mutate(group1, Cluster = km[[5]]$cluster)
+
+group1 %>%
+  mutate(Cluster = as.character(Cluster)) %>%
+  ggplot(., aes(x = PC2, y = PC4, colour = Cluster)) + theme_classic() +
+    geom_point() + scale_color_brewer(type = "qual", palette = "Dark2") +
+    labs(x = "PC2 (5.6%)", y = "PC4 (4.1%)")
+ggsave("figures/munge/clustered_pc2_4.pdf", width = 6, height = 4, units = "in", 
+       dpi = 300)
+
+p1 <- with(group1, table(Parent1, Cluster))
+p2 <- with(group1, table(Parent2, Cluster))

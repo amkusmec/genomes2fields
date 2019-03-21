@@ -5,9 +5,7 @@ source("src/yield_stage_one.R")
 
 
 # Identify variables present for each site --------------------------------
-hybrids <- rownames(read_rds("data/gbs/add_snps.rds")$GD)
-yield <- read_rds("data/phenotype/yield_agron0.rds") %>%
-  filter(PedigreeNew %in% hybrids)
+yield <- read_rds("data/phenotype/yield_agron0.rds")
 variables <- yield %>%
   group_by(Environment, Year) %>%
   summarise(Replicate = !any(is.na(Replicate)), 
@@ -22,7 +20,7 @@ variables <- yield %>%
 
 # Compute stage one estimates of hybrid effects ---------------------------
 res <- list()
-for (i in c(1:32, 34:38, 40:41, 43:44, 46:53, 55:nrow(variables))) {
+for (i in c(1:41, 43:53, 55:58, 60:nrow(variables))) {
   r <- variables[i, ]
   temp <- filter(yield, Environment == r$Environment[1], Year == r$Year[1]) %>%
     mutate(Replicate = as.character(Replicate), 
@@ -33,11 +31,9 @@ for (i in c(1:32, 34:38, 40:41, 43:44, 46:53, 55:nrow(variables))) {
   res[[temp$Site[1]]] <- stage_one(temp, r)
 }
 
-write_rds(res, "data/phenotype/yield_stage_one_gbs.rds")
+write_rds(res, "data/phenotype/yield_stage_one_all_agron0.rds")
 
 ### Some manual modifications
-###  - (33) MNH1_2015 = remove Rowf
-###  - (39) MOH2_2014 = remove Rowf and RootLodging
-###  - (42) NEH1_2015 = remove Rowf and spl2D(Row, Column)
-###  - (45) NEH3_2015 = remove spl2D(Row, Column)
+###  - (42) NEH1_2015 = keep only Colf
 ###  - (54) OHH1_2015 = remove RootLodging from consideration
+###  - (59) TXH2_2017 = remove Replicate == "0"

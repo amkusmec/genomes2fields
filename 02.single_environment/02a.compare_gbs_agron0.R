@@ -3,14 +3,14 @@ library(readxl)
 
 
 # Compare variable inclusion ----------------------------------------------
-vars1 <- read_xlsx("data/variable_inclusion.xlsx", na = "NA", skip = 1)
-vars2 <- read_xlsx("data/variable_inclusion_gbs.xlsx", na = "NA", skip = 1)
+vars1 <- read_xlsx("data/variable_inclusion_all_agron0.xlsx", na = "NA", skip = 1)
+vars2 <- read_xlsx("data/variable_inclusion_gbs_agron0.xlsx", na = "NA", skip = 1)
 
 # How many sites include each variable?
 counts1 <- apply(vars1[, 3:8], 2, table)
 counts2 <- apply(vars2[, 3:8], 2, table)
 counts2 <- do.call("cbind", counts2)
-counts2[2, 3] <- 0
+counts2[2, 3] <- 0L
 
 # Compare each site
 similarity <- sapply(1:nrow(vars1), function(i) {
@@ -27,8 +27,8 @@ non_missing - var_sim
 
 
 # Compare hybrid BLUEs ----------------------------------------------------
-res1 <- read_rds("data/phenotype/yield_stage_one.rds")
-res2 <- read_rds("data/phenotype/yield_stage_one_gbs.rds")
+res1 <- read_rds("data/phenotype/yield_stage_one_all_agron0.rds")
+res2 <- read_rds("data/phenotype/yield_stage_one_gbs_agron0.rds")
 
 blue_cor <- sapply(seq_along(res1), function(i) {
   temp <- inner_join(res1[[i]]$blue, res2[[i]]$blue, by = "PedigreeNew")
