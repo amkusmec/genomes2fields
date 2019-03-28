@@ -8,3 +8,9 @@ mad_vs_corr_all_40.pdf
 mad_vs_corr_all_gbs.pdf
 vcov_corr_all_40.pdf
 vcov_corr_all_gbs.pdf
+dendro_pearson.pdf
+dendro_tau.pdf
+pearson_correlation.pdf
+tau_correlation.pdf
+var_scaled.pdf
+var_unscaled.pdf
