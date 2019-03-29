@@ -2,6 +2,8 @@ library(tidyverse)
 library(lubridate)
 library(purrrlyr)
 
+source("src/tensor_decomp.R")
+
 
 # Calculate median CHU to anthesis for each site --------------------------
 chua <- read_rds("data/phenotype/yield_agron0.rds") %>%
@@ -46,33 +48,99 @@ for (i in 1:(ncol(windowed) - 2)) {
     etens[i, j, ] <- windowed[[i + 2]][windowed$Site == sites[j]]
   }
 }
+# write_rds(etens, "data/weather/env_tensor.rds")
+# 
+# # Create a list of data matrices
+# elist <- list()
+# for (i in 1:(ncol(windowed) - 2)) {
+#   temp <- names(windowed)[i + 2]
+#   names(windowed)[i + 2] <- "X"
+#   
+#   elist[[i]] <- windowed %>%
+#     select(Site, Window, X) %>%
+#     spread(Site, X) %>%
+#     select(-Window) %>%
+#     as.matrix()
+#   rownames(elist[[i]]) <- make.names(thresholds)
+#   
+#   names(windowed)[i + 2] <- temp
+# }
+# names(elist) <- names(windowed)[-c(1, 2)]
+# 
+# # Estimate dimensionality parameters
+# dims <- EstDim(list(A = etens, L = elist))
+# 
+# # Perform tensorial independent component analysis
+# tica <- DoTICA(list(A = etens, L = elist), dims$dim, method = "JADE")
 
-# Create a list of data matrices
-elist <- list()
-for (i in 1:(ncol(windowed) - 2)) {
-  temp <- names(windowed)[i + 2]
-  names(windowed)[i + 2] <- "X"
-  
-  elist[[i]] <- windowed %>%
-    select(Site, Window, X) %>%
-    spread(Site, X) %>%
-    select(-Window) %>%
-    as.matrix()
-  rownames(elist[[i]]) <- make.names(thresholds)
-  
-  names(windowed)[i + 2] <- temp
+
+# Hierarchical clustering using Euclidean distance ------------------------
+# Center and standardize the data tensor for each combination of
+# window and variable over sites. Using apply is more elegant, but this
+# preserves the dimensions and dimension names.
+for (i in 1:(dim(etens)[1])) {
+  for (k in 1:(dim(etens)[3])) {
+    etens[i, , k] <- scale(etens[i, , k], center = TRUE, scale = TRUE) %>%
+      as.vector()
+  }
 }
-names(elist) <- names(windowed)[-c(1, 2)]
 
+# Euclidean distance matrix between sites using all variables
+all_dist <- matrix(0, nrow = length(sites), ncol = length(sites))
+dimnames(all_dist) <- list(sites, sites)
+for (i in 1:(length(sites) - 1)) {
+  for (j in (i + 1):length(sites)) {
+    all_dist[j, i] <- all_dist[i, j] <- sqrt(sum((etens[, i, ] - etens[, j, ])^2))
+  }
+}
 
+all_clust <- hclust(as.dist(all_dist), method = "ward.D")
 
-### Distance based (Euclidean) clustering
-### Standardize data tensor for (window x variable) over site
-### Compute Euclidean distance between sites as
-### sqrt(sum(window x variable difference squared))
-### hierarchical clustering
+all_yr_labs <- all_clust$labels %>% str_replace(., "[A-Z]{2}H[0-9]_", "") %>%
+  factor() %>% as.integer()
+all_yr_cols <- WGCNA::labels2colors(all_yr_labs)
+all_st_labs <- all_clust$labels %>% str_replace(., "H[1-4]_201[4-7]", "") %>%
+  factor() %>% as.integer()
+all_st_cols <- WGCNA::labels2colors(all_st_labs)
 
-### do clustering for each variable separately as well
+pdf("figures/single/dendro_all.pdf", width = 8, height = 6)
+WGCNA::plotDendroAndColors(all_clust, cbind(all_yr_cols, all_st_cols), 
+                           c("Year", "State"), dendroLabels = NULL, 
+                           addGuide = TRUE, main = "All variables")
+dev.off()
 
-### plot all results using dendrograms and year/state color labels as for
-### clusterings based on yield correlations
+# Euclidean distance matrices between sites for individual variables
+variables <- names(windowed)[-c(1, 2)]
+single <- list()
+for (k in variables) {
+  d <- matrix(0, nrow = length(sites), ncol = length(sites), 
+              dimnames = list(sites, sites))
+  for (i in 1:(length(sites) - 1)) {
+    for (j in (i + 1):length(sites)) {
+      d[j, i] <- d[i, j] <- sqrt(sum((etens[k, i, ] - etens[k, j, ])^2))
+    }
+  }
+  
+  clust <- hclust(as.dist(d), method = "ward.D")
+  yr_labs <- clust$labels %>% str_replace(., "[A-Z]{2}H[0-9]_", "") %>%
+    factor() %>% as.integer()
+  yr_cols <- WGCNA::labels2colors(yr_labs)
+  st_labs <- clust$labels %>% str_replace(., "H[1-4]_201[4-7]", "") %>%
+    factor() %>% as.integer()
+  st_cols <- WGCNA::labels2colors(st_labs)
+  
+  single[[k]] <- list(dist = d, clust = clust, yr_labs = yr_labs, 
+                      yr_cols = yr_cols, st_labs = st_labs, st_cols = st_cols)
+}
+
+variable_names <- c("Minimum temperature", "Maximum temperature", 
+                    "Precipitation", "Solar radiation", 
+                    "Net evapotranspiration")
+for (i in seq_along(variables)) {
+  pdf(paste0("figures/single/dendro_", variables[i], ".pdf"), 
+      width = 11, height = 6)
+  WGCNA::plotDendroAndColors(single[[i]]$clust, cbind(single[[i]]$yr_cols, single[[i]]$st_cols), 
+                             c("Year", "State"), dendroLabels = NULL, addGuide = TRUE, 
+                             main = variable_names[i])
+  dev.off()
+}

@@ -125,9 +125,9 @@ st_labs <- clust$labels %>% str_replace(., "H[1-4]_201[4-7]", "") %>%
   factor() %>% as.integer()
 st_cols <- WGCNA::labels2colors(st_labs)
 
-pdf("figures/single/dendro_tau.pdf", width = 8, height = 6)
+pdf("figures/single/dendro_tau.pdf", width = 11, height = 6)
 WGCNA::plotDendroAndColors(clust, cbind(yr_cols, st_cols), 
-                           c("Year", "State"), dendroLabels = FALSE, 
+                           c("Year", "State"), dendroLabels = NULL, 
                            addGuide = TRUE, main = expression(tau[b]))
 dev.off()
 
@@ -153,8 +153,8 @@ st_labs2 <- clust2$labels %>% str_replace(., "H[1-4]_201[4-7]", "") %>%
   factor() %>% as.integer()
 st_cols2 <- WGCNA::labels2colors(st_labs2)
 
-pdf("figures/single/dendro_pearson.pdf", width = 8, height = 6)
+pdf("figures/single/dendro_pearson.pdf", width = 11, height = 6)
 WGCNA::plotDendroAndColors(clust2, cbind(yr_cols2, st_cols2), 
-                           c("Year", "State"), dendroLabels = FALSE, 
+                           c("Year", "State"), dendroLabels = NULL, 
                            addGuide = TRUE, main = "r")
 dev.off()
