@@ -92,6 +92,7 @@ blue <- blue %>%
 
 yield <- cbind(yield, res) %>%
   inner_join(., blue, by = c("Site", "PedigreeNew")) %>%
-  select(-CHUA, -Planted, -Harvested)
+  select(-CHUA, -Planted, -Harvested) %>%
+  select(Site, PedigreeNew, BLUE, everything())
 
 write_rds(yield, "data/phenotype/yield_blue_env.rds")

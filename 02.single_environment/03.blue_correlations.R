@@ -1,7 +1,6 @@
 library(tidyverse)
 
 
-
 # Keep only hybrids that will be used for GxE analysis --------------------
 taxa <- rownames(read_rds("data/gbs/add_snps.rds")$GD)
 

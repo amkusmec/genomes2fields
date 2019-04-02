@@ -1,8 +1,7 @@
 library(tidyverse)
 library(lubridate)
 library(purrrlyr)
-
-source("src/tensor_decomp.R")
+library(tensorBSS)
 
 
 # Calculate median CHU to anthesis for each site --------------------------
@@ -49,29 +48,11 @@ for (i in 1:(ncol(windowed) - 2)) {
   }
 }
 # write_rds(etens, "data/weather/env_tensor.rds")
-# 
-# # Create a list of data matrices
-# elist <- list()
-# for (i in 1:(ncol(windowed) - 2)) {
-#   temp <- names(windowed)[i + 2]
-#   names(windowed)[i + 2] <- "X"
-#   
-#   elist[[i]] <- windowed %>%
-#     select(Site, Window, X) %>%
-#     spread(Site, X) %>%
-#     select(-Window) %>%
-#     as.matrix()
-#   rownames(elist[[i]]) <- make.names(thresholds)
-#   
-#   names(windowed)[i + 2] <- temp
-# }
-# names(elist) <- names(windowed)[-c(1, 2)]
-# 
-# # Estimate dimensionality parameters
-# dims <- EstDim(list(A = etens, L = elist))
-# 
-# # Perform tensorial independent component analysis
-# tica <- DoTICA(list(A = etens, L = elist), dims$dim, method = "JADE")
+
+### Can be run in the background with data/weather/env_tensor_decomp.R
+# tica <- tgJADE(etens, maxiter = 500)
+# write_rds(tica, "data/weather/tgJADE.rds")
+tica <- read_rds("data/weather/tgJADE.rds")
 
 
 # Hierarchical clustering using Euclidean distance ------------------------
@@ -103,7 +84,7 @@ all_st_labs <- all_clust$labels %>% str_replace(., "H[1-4]_201[4-7]", "") %>%
   factor() %>% as.integer()
 all_st_cols <- WGCNA::labels2colors(all_st_labs)
 
-pdf("figures/single/dendro_all.pdf", width = 8, height = 6)
+pdf("figures/single/dendro_all.pdf", width = 11, height = 6)
 WGCNA::plotDendroAndColors(all_clust, cbind(all_yr_cols, all_st_cols), 
                            c("Year", "State"), dendroLabels = NULL, 
                            addGuide = TRUE, main = "All variables")
