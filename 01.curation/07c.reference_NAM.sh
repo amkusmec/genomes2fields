@@ -31,27 +31,10 @@ cd ..
 rm NAM_merged.vcf
 
 # QC on NAM parents
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom1.vcf -o NAM_merged_chrom1.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom2.vcf -o NAM_merged_chrom2.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom3.vcf -o NAM_merged_chrom3.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom4.vcf -o NAM_merged_chrom4.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom5.vcf -o NAM_merged_chrom5.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom6.vcf -o NAM_merged_chrom6.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom7.vcf -o NAM_merged_chrom7.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom8.vcf -o NAM_merged_chrom8.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom9.vcf -o NAM_merged_chrom9.stat -mi 4
-python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom10.vcf -o NAM_merged_chrom10.stat -mi 4
-
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom1.stat -i NAM_merged_chrom1.vcf -o NAM_merged_chrom1_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom2.stat -i NAM_merged_chrom2.vcf -o NAM_merged_chrom2_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom3.stat -i NAM_merged_chrom3.vcf -o NAM_merged_chrom3_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom4.stat -i NAM_merged_chrom4.vcf -o NAM_merged_chrom4_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom5.stat -i NAM_merged_chrom5.vcf -o NAM_merged_chrom5_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom6.stat -i NAM_merged_chrom6.vcf -o NAM_merged_chrom6_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom7.stat -i NAM_merged_chrom7.vcf -o NAM_merged_chrom7_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom8.stat -i NAM_merged_chrom8.vcf -o NAM_merged_chrom8_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom9.stat -i NAM_merged_chrom9.vcf -o NAM_merged_chrom9_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
-python3 ~/snptools/src/filter.py -s NAM_merged_chrom10.stat -i NAM_merged_chrom10.vcf -o NAM_merged_chrom10_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
+for i in `seq 1 10`; do
+  python3 ~/snptools/src/snpstat.py -i NAM_merged_chrom${i}.vcf -o NAM_merged_chrom${i}.stat -mi 4
+  python3 ~/snptools/src/filter.py -s NAM_merged_chrom${i}.stat -i NAM_merged_chrom${i}.vcf -o NAM_merged_chrom${i}_filt -mi 4 -n 0.8 -f 0.05 -ht 0.05
+done
 rm *_filt_filtered.vcf
 
 # Estimate imputation accuracy
@@ -67,13 +50,6 @@ done
 rm *mask*
 
 # Create reference genotypes for the NAM parents
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom1_filt.vcf out=NAM_reference_chrom1 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom2_filt.vcf out=NAM_reference_chrom2 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom3_filt.vcf out=NAM_reference_chrom3 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom4_filt.vcf out=NAM_reference_chrom4 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom5_filt.vcf out=NAM_reference_chrom5 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom6_filt.vcf out=NAM_reference_chrom6 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom7_filt.vcf out=NAM_reference_chrom7 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom8_filt.vcf out=NAM_reference_chrom8 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom9_filt.vcf out=NAM_reference_chrom9 nthreads=4
-java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom10_filt.vcf out=NAM_reference_chrom10 nthreads=4
+for i in `seq 1 10`; do
+  java -Xmx50g -jar ../../src/beagle.28Sep18.793.jar gt=NAM_merged_chrom${i}_filt.vcf out=NAM_reference_chrom${i} nthreads=4
+done
