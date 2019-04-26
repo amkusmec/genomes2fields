@@ -21,3 +21,5 @@ tmin_prism.rds
 weather_munged.rds
 weather_power.rds
 weather_prism.rds
+ga_all_R.rds
+ga_select_R.rds
