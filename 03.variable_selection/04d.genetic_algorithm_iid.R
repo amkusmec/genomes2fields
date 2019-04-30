@@ -164,7 +164,10 @@ write_rds(g, "data/weather/ga_all.rds")
 # Variables selected by leave-one-out models
 variables <- lapply(res, function(x) x$ga$g) %>%
   unlist(use.names = FALSE)
+length(unique(variables))
 sort(table(variables))
+
+g$g[g$g %in% variables]
 
 # Fit of leave-one-out models on the entire dataset
 r2adj <- sapply(res, function(x) {

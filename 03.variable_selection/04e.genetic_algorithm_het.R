@@ -263,5 +263,6 @@ best_mse <- which.min(sapply(res, function(x) x$mse))
 site_levels[best_mse]
 res[[best_mse]]$ga$g
 
+# No relationship between MSE on the held out site and r2adj on the whole dataset
 cor(r2adj, sapply(res, function(x) x$mse), method = "kendall")
 plot(r2adj, sapply(res, function(x) x$mse), pch = 19)
