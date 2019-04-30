@@ -1,3 +1,7 @@
+### Random forest regression does not work well for our problem. High amounts of
+### strong multicollinearity pose a problem for RFR to distinguish between
+### highly correlated (often overlapping) windows of the same variable.
+
 library(tidyverse)
 library(randomForest)
 library(parallel)

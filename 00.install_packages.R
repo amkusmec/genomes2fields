@@ -15,3 +15,9 @@ install.packages("elevatr")
 source("https://bioconductor.org/biocLite.R")
 biocLite("qvalue")
 install.packages("isva")
+
+
+### Need to figure out how to install `ashr` directly and not as part of `mashr`
+### unless we end up using the latter after figuring out how to deal with the
+### missing data issue.
+

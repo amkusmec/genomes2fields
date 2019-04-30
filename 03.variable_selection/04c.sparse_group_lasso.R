@@ -1,3 +1,8 @@
+### Statistically, SGL has highly desirable properties. Unfortunately, the existing
+### implementation is too slow for a data set of this size. A single CV model
+### takes > 1 day to compute. Memory use requirements preclude parallel 
+### computation of all CV models simultaneously.
+
 library(tidyverse)
 library(SGL)
 

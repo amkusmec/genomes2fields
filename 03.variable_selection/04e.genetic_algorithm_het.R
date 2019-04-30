@@ -195,7 +195,7 @@ res <- lapply(site_levels, function(s) {
   train_y <- z[-idx]
   
   # Optimize a linear regression model using BIC
-  g <- ga(train_y, train_x, popsize = 500, n = 5, maxiter = 1000, run = 200, 
+  g <- ga(train_y, train_x, popsize = 500, n = 5, maxiter = 500, run = 100, 
           pcrossover = 0.8, pmutation = 0.2)
   
   # Compute MSE on the left out site
@@ -210,50 +210,58 @@ write_rds(res, "data/weather/ga_select_R.rds")
 
 
 # Genetic algorithm with all data -----------------------------------------
-g <- ga(z, W, popsize = 500, n = 5, maxiter = 1000, run = 200, 
+g <- ga(z, W, popsize = 500, n = 5, maxiter = 500, run = 100, 
         pcrossover = 0.8, pmutation = 0.2)
 write_rds(g, "data/weather/ga_all_R.rds")
 
 
 
-# # Variables selected by leave-one-out models
-# variables <- lapply(res, function(x) x$ga) %>%
-#   unlist(use.names = FALSE)
-# sort(table(variables))
-# 
-# # Fit of leave-one-out models on the entire dataset
-# r2adj <- sapply(res, function(x) {
-#   lm(z ~ W[, c("Intercept", x$ga)]) %>% broom::glance() %>% pull(adj.r.squared)
-# })
-# r2adj_all <- lm(z ~ W[, c("Intercept", g)]) %>% broom::glance() %>% pull(adj.r.squared)
-# 
-# # Composite model
-# vmat <- matrix(0, nrow = ncol(X) - 1, ncol = length(res))
-# colnames(vmat) <- site_levels
-# rownames(vmat) <- colnames(X)[-1]
-# for (i in seq_along(res)) {
-#   vmat[rownames(vmat) %in% res[[i]]$ga, i] <- 1
-# }
-# 
-# wt <- sapply(res, function(x) x$mse)
-# wt <- (1/(wt/sum(wt)))/sum(1/(wt/sum(wt)))
-# comp <- rowSums(vmat*matrix(wt, nrow = nrow(vmat), ncol = ncol(vmat), byrow = TRUE))
-# comp <- names(sort(comp, decreasing = TRUE))[1:5]
-# r2adj_comp <- lm(z ~ W[, c("Intercept", comp)]) %>% broom::glance() %>% pull(adj.r.squared)
-# 
-# hist(r2adj[r2adj > 0.5], xlab = expression(R[adj]^2), main = "", breaks = seq(0.58, 0.62, 0.005))
-# abline(v = round(r2adj_all, 4) - 0.0025, lty = 2, col = "blue")
-# abline(v = round(r2adj_comp, 4) - 0.0025, lty = 2, col = "red")
-# 
-# variables %>% unique() %>% str_split(., "_") %>% 
-#   sapply(., function(x) x[1]) %>% table()
-# 
-# variables %>% unique() %>% str_split(., "_") %>%
-#   sapply(., function(x) x[2]) %>%
-#   str_replace(., "X", "") %>% as.numeric() %>%
-#   hist(., breaks = seq(0, 1.475, 0.025), xlab = "Window start", main = "")
-# 
-# variables %>% unique() %>% str_split(., "_") %>%
-#   sapply(., function(x) x[3]) %>%
-#   str_replace(., "X", "") %>% as.numeric() %>%
-#   hist(., breaks = seq(0, 1.5, 0.025), xlab = "Window end", main = "")
+# Variables selected by leave-one-out models
+variables <- lapply(res, function(x) x$ga$g) %>%
+  unlist(use.names = FALSE)
+variables <- variables[variables != "Intercept"]
+length(unique(variables))
+sort(table(variables))
+
+# Fit of leave-one-out models on the entire dataset
+r2adj <- sapply(res, function(x) {
+  lm(z ~ W[, x$ga$g]) %>% broom::glance() %>% pull(adj.r.squared)
+})
+r2adj_all <- lm(z ~ W[, g$g]) %>% broom::glance() %>% pull(adj.r.squared)
+
+# Composite model
+vmat <- matrix(0, nrow = ncol(X) - 1, ncol = length(res))
+colnames(vmat) <- site_levels
+rownames(vmat) <- colnames(X)[-1]
+for (i in seq_along(res)) {
+  vmat[rownames(vmat) %in% res[[i]]$ga$g, i] <- 1
+}
+
+wt <- sapply(res, function(x) x$mse)
+wt <- (1/(wt/sum(wt)))/sum(1/(wt/sum(wt)))
+comp <- rowSums(vmat*matrix(wt, nrow = nrow(vmat), ncol = ncol(vmat), byrow = TRUE))
+comp <- names(sort(comp, decreasing = TRUE))[1:5]
+r2adj_comp <- lm(z ~ W[, c("Intercept", comp)]) %>% broom::glance() %>% pull(adj.r.squared)
+
+tibble(R2 = r2adj) %>%
+  ggplot(., aes(x = R2)) + theme_classic() +
+    geom_histogram(binwidth = 0.001, fill = "skyblue", colour = "black") +
+    geom_vline(xintercept = round(r2adj_all, 2), 
+               linetype = 2, colour = "orange") +
+    geom_vline(xintercept = round(r2adj_comp, 2), 
+               linetype = 2, colour = "red") +
+    labs(x = expression(R[adj]^2), y = "Count")
+ggsave("figures/select/ga_het_r2.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+sum(r2adj > r2adj_all)/length(res)
+
+best_r2 <- which.max(r2adj)
+site_levels[best_r2]
+res[[best_r2]]$ga$g
+
+best_mse <- which.min(sapply(res, function(x) x$mse))
+site_levels[best_mse]
+res[[best_mse]]$ga$g
+
+cor(r2adj, sapply(res, function(x) x$mse), method = "kendall")
+plot(r2adj, sapply(res, function(x) x$mse), pch = 19)

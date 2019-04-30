@@ -1,3 +1,11 @@
+### Similar to SGL, SSR has desirable statistical properties. There are 
+### computational time issues similar to SSR. Additionally, there is some odd
+### internal parallelization that is going on. Individual processes take up to
+### ~75% RAM (on a 384 GB machine!). There is also an error in returning results
+### in a parallelized setting, but I haven't been able to tell if that is an 
+### issue with the package or my code. The grouped version would also be off 
+### interest if computationally tractable.
+
 library(tidyverse)
 library(spikeslab)
 

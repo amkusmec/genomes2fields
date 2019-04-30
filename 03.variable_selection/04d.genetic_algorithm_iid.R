@@ -36,6 +36,7 @@ ga <- function(resp, pred, popsize, n = 5, maxiter = 50, run = 10,
   repeat {
     # Check for maximum iterations
     iter <- iter + 1
+    cat("Iter:", iter, "/", maxiter, "\r")
     if(iter == maxiter) break
     
     # Evaluate solutions
@@ -128,6 +129,8 @@ ga <- function(resp, pred, popsize, n = 5, maxiter = 50, run = 10,
 
 # Leave-one-site-out cross validation -------------------------------------
 res <- lapply(site_levels, function(s) {
+  cat("\n", which(site_levels == s), "\n")
+  
   # Partition into training and testing sets
   idx <- which(sites == s)
   
@@ -138,7 +141,7 @@ res <- lapply(site_levels, function(s) {
   train_y <- y[-idx]
   
   # Optimize a linear regression model using BIC
-  g <- ga(train_y, train_x, popsize = 500, n = 5, maxiter = 1000, run = 200, 
+  g <- ga(train_y, train_x, popsize = 500, n = 5, maxiter = 500, run = 100, 
           pcrossover = 0.8, pmutation = 0.2)
   
   # Compute MSE on the left out site
@@ -153,49 +156,52 @@ write_rds(res, "data/weather/ga_select.rds")
 
 
 # Genetic algorithm with all data -----------------------------------------
-g <- ga(y, X, popsize = 500, n = 5, maxiter = 1000, run = 200, 
+g <- ga(y, X, popsize = 500, n = 5, maxiter = 500, run = 100, 
         pcrossover = 0.8, pmutation = 0.2)
 write_rds(g, "data/weather/ga_all.rds")
 
 
-# # Variables selected by leave-one-out models
-# variables <- lapply(res, function(x) x$ga) %>%
-#   unlist(use.names = FALSE)
-# sort(table(variables))
-# 
-# # Fit of leave-one-out models on the entire dataset
-# r2adj <- sapply(res, function(x) {
-#   lm(y ~ X[, x$ga]) %>% broom::glance() %>% pull(adj.r.squared)
-# })
-# r2adj_all <- lm(y ~ X[, g]) %>% broom::glance() %>% pull(adj.r.squared)
-# 
-# # Composite model
-# vmat <- matrix(0, nrow = ncol(X), ncol = length(res))
-# colnames(vmat) <- site_levels
-# rownames(vmat) <- colnames(X)
-# for (i in seq_along(res)) {
-#   vmat[rownames(vmat) %in% res[[i]]$ga, i] <- 1
-# }
-# 
-# wt <- sapply(res, function(x) x$mse)
-# wt <- (1/(wt/sum(wt)))/sum(1/(wt/sum(wt)))
-# comp <- rowSums(vmat*matrix(wt, nrow = nrow(vmat), ncol = ncol(vmat), byrow = TRUE))
-# comp <- names(sort(comp, decreasing = TRUE))[1:5]
-# r2adj_comp <- lm(y ~ X[, comp]) %>% broom::glance() %>% pull(adj.r.squared)
-# 
-# hist(r2adj, xlab = expression(R[adj]^2), main = "", breaks = seq(0.2, 0.32, 0.01))
-# abline(v = round(r2adj_all, 2) - 0.005, lty = 2, col = "blue")
-# abline(v = round(r2adj_comp, 2) - 0.005, lty = 2, col = "red")
-# 
-# variables %>% unique() %>% str_split(., "_") %>% 
-#   sapply(., function(x) x[1]) %>% table()
-# 
-# variables %>% unique() %>% str_split(., "_") %>%
-#   sapply(., function(x) x[2]) %>%
-#   str_replace(., "X", "") %>% as.numeric() %>%
-#   hist(., breaks = seq(0, 1.475, 0.025), xlab = "Window start", main = "")
-# 
-# variables %>% unique() %>% str_split(., "_") %>%
-#   sapply(., function(x) x[3]) %>%
-#   str_replace(., "X", "") %>% as.numeric() %>%
-#   hist(., breaks = seq(0, 1.5, 0.025), xlab = "Window end", main = "")
+# Variables selected by leave-one-out models
+variables <- lapply(res, function(x) x$ga$g) %>%
+  unlist(use.names = FALSE)
+sort(table(variables))
+
+# Fit of leave-one-out models on the entire dataset
+r2adj <- sapply(res, function(x) {
+  lm(y ~ X[, x$ga$g]) %>% broom::glance() %>% pull(adj.r.squared)
+})
+r2adj_all <- lm(y ~ X[, g$g]) %>% broom::glance() %>% pull(adj.r.squared)
+
+# Composite model
+vmat <- matrix(0, nrow = ncol(X), ncol = length(res))
+colnames(vmat) <- site_levels
+rownames(vmat) <- colnames(X)
+for (i in seq_along(res)) {
+  vmat[rownames(vmat) %in% res[[i]]$ga$g, i] <- 1
+}
+
+wt <- sapply(res, function(x) x$mse)
+wt <- (1/(wt/sum(wt)))/sum(1/(wt/sum(wt)))
+comp <- rowSums(vmat*matrix(wt, nrow = nrow(vmat), ncol = ncol(vmat), byrow = TRUE))
+comp <- names(sort(comp, decreasing = TRUE))[1:5]
+r2adj_comp <- lm(y ~ X[, comp]) %>% broom::glance() %>% pull(adj.r.squared)
+
+tibble(R2 = r2adj) %>%
+  ggplot(., aes(x = R2)) + theme_classic() +
+    geom_histogram(binwidth = 0.01, fill = "skyblue", colour = "black") +
+    geom_vline(xintercept = round(r2adj_all, 2), 
+               linetype = 2, colour = "orange") +
+    geom_vline(xintercept = round(r2adj_comp, 2), 
+               linetype = 2, colour = "red") +
+    labs(x = expression(R[adj]^2), y = "Count")
+ggsave("figures/select/ga_iid_r2.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+sum(r2adj > r2adj_all)/length(res)
+
+best_r2 <- which.max(r2adj)
+site_levels[best_r2]
+res[[best_r2]]$ga$g
+
+best_mse <- which.min(sapply(res, function(x) x$mse))
+site_levels[best_mse]
+res[[best_mse]]$ga$g
