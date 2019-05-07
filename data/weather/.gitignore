@@ -23,3 +23,7 @@ weather_power.rds
 weather_prism.rds
 ga_all_R.rds
 ga_select_R.rds
+fused_lasso_paths.rds
+fused_lasso_paths0.rds
+susie_all.rds
+susie_select.rds

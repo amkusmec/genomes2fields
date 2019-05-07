@@ -127,7 +127,7 @@ ga <- function(resp, pred, popsize, n = 5, maxiter = 50, run = 10,
 }
 
 
-# Leave-one-site-out cross validation -------------------------------------
+# Leave-one-site-out cross-validation -------------------------------------
 res <- lapply(site_levels, function(s) {
   cat("\n", which(site_levels == s), "\n")
   

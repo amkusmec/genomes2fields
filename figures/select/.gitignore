@@ -10,3 +10,7 @@ NET_0.pdf
 TMIN_0.pdf
 ga_het_r2.pdf
 ga_iid_r2.pdf
+fused_lasso_cv.pdf
+fused_lasso_cv0.pdf
+lasso_nzero.pdf
+lasso_r2.pdf
