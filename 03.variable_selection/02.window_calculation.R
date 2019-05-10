@@ -4,7 +4,6 @@ library(purrrlyr)
 library(parallel)
 
 
-
 # Prepare yield and weather data ------------------------------------------
 weather <- read_rds("data/weather/env_variables.rds") %>%
   mutate(Site = paste(Environment, Year, sep = "_"), 

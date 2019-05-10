@@ -27,3 +27,5 @@ fused_lasso_paths.rds
 fused_lasso_paths0.rds
 susie_all.rds
 susie_select.rds
+fused_bic.rds
+fused_windows.rds

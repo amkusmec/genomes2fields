@@ -90,7 +90,7 @@ for (i in 1:(nrow(D) - 1)) {
 
 # Fused LASSO -------------------------------------------------------------
 # Grid of gamma values to explore for sparsity
-gam <- c(1:5, 10, 15, 20)
+# gam <- c(1:5, 10, 15, 20)
 
 # 1) Compute the regularization paths
 # cl <- makeCluster(length(site_levels))
@@ -248,5 +248,10 @@ idx <- which.max(cv[cv_1se])
 fused_all <- fusedlasso(y_sc, X_sc, D, gamma = 0, verbose = TRUE)
 coefs <- coef(fused_all, lambda = lambda_grid[idx])
 
-plot(coefs$beta[, 1], type = "b", col = as.integer(factor(cnames$Variable)))
-abline(h = 0, lty = 2); abline(v = 40 + 60*(0:4), lty = 4)
+# plot(coefs$beta[, 1], type = "b", col = as.integer(factor(cnames$Variable)))
+# abline(h = 0, lty = 2); abline(v = 40 + 60*(0:4), lty = 4)
+
+fused <- cnames %>%
+  select(-Width) %>%
+  mutate(Beta = coefs$beta[, 1])
+write_rds(fused, "data/weather/fused_windows.rds")
