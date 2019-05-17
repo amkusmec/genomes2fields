@@ -205,7 +205,7 @@ res <- lapply(site_levels, function(s) {
   
   return(list(ga = g, mse = mse))
 })
-
+names(res) <- site_levels
 write_rds(res, "data/weather/ga_select_R.rds")
 
 

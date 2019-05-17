@@ -1,6 +1,7 @@
 library(tidyverse)
 library(lubridate)
 library(purrrlyr)
+library(parallel)
 
 
 # Prepare yield and weather data ------------------------------------------
@@ -150,32 +151,43 @@ z <- drop(V %*% y)
 W <- V %*% X
 
 # Center (and scale)
-y_sc <- z - mean(z)
+y_sc <- z
 X_sc <- scale(W, center = TRUE, scale = TRUE)
 
 
 # Exhaustive search of the model space ------------------------------------
 combos <- combn(colnames(res), 5)
 
-### This creates an enormous (~452 GB) object in memory. There are more elegant
-### ways to do this, but none that are worth my time right now.
-models <- lapply(1:ncol(combos), function(x) {
-  cat("Model:", x, "/", ncol(combos), "\r")
+cl <- makeCluster(detectCores())
+clusterEvalQ(cl, library(tidyverse))
+clusterExport(cl, list("y_sc", "X_sc", "combos"))
+
+models <- parLapply(cl, 1:ncol(combos), function(x) {
+  # cat("Model:", x, "/", ncol(combos), "\r")
   temp <- as_tibble(cbind(y_sc, X_sc[, combos[, x]]))
-  full_form <- as.formula(paste0("y_sc ~ 0 + ", paste(combos[, x], collapse = "*")))
-  step(lm(full_form, data = temp), direction = "backward", trace = 0, 
-       k = log(nrow(temp)))
+  full_form <- as.formula(paste0("y_sc ~ 1 + ", paste(combos[, x], collapse = "*")))
+  null_form <- as.formula("y_sc ~ 1")
+  step(lm(full_form, data = temp), scope = list(lower = lm(null_form, data = temp)), 
+       direction = "backward", trace = 0, k = log(nrow(temp))) %>%
+    coef() %>%
+    names()
 })
-bic <- sapply(models, BIC)
+stopCluster(cl)
+
+bic <- sapply(models, function(m) {
+  paste0("y_sc ~ 1 + ", paste(m[-1], collapse = " + ")) %>% 
+    as.formula() %>%
+    lm(., data = as_tibble(cbind(y_sc, X_sc))) %>%
+    BIC()
+})
 write_rds(bic, "data/weather/fused_bic.rds")
-rm(models); gc()
+# rm(models); gc()
 
 percent1 <- quantile(bic, probs = 0.01)
 idx <- which(bic <= percent1)
 
-temp <- as_tibble(cbind(y_sc, X_sc[, combos[, idx[2]]]))
-full_form <- as.formula(paste0("y_sc ~ 0 + ", paste(combos[, idx[2]], collapse = "*")))
-full_model <- lm(full_form, data = temp)
-null_model <- lm(y_sc ~ 0, data = temp)
-m <- step(full_model, scope = list(lower = null_model), direction = "backward", k = log(nrow(temp)))
-View(combos[, idx])
+paste0("y_sc ~ 1 + ", paste(models[[which.min(bic)]][-1], collapse = " + ")) %>%
+  as.formula() %>% lm(., data = as_tibble(cbind(y_sc, X_sc[, combos[, which.min(bic)]]))) %>% 
+  broom::glance()
+# adj.r.squared = 0.624 is marginally better than the best GA (het) model
+# This is only when including the interactions

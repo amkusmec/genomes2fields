@@ -4,3 +4,10 @@ snp_info.txt
 yield_blue.txt
 ash_results.rds
 common_snps.txt
+centered_cov.txt
+common_snp_mash.rds
+gemma_common_F.out
+gemma_common_alpha.out
+gemma_common_lambda.out
+gemma_common_sigma2.out
+mash_data.rds
