@@ -145,15 +145,48 @@ gibbs <- do.call("rbind", gibbs)
 params <- apply(gibbs, 2, mean) %>%
   enframe()
 
-mus <- filter(params, name %in% c("mu", "TMIN_X0.225_X0.45", "TMIN_X0.45_X1.1", 
+mus <- filter(params, name %in% c("TMIN_X0.225_X0.45", "TMIN_X0.45_X1.1", 
                                   "TMAX_X0.75_X0.95", "PPT_X0.1_X0.225", 
                                   "NET_X0.425_X1.125"))
 ped <- filter(params, str_detect(name, "/")) %>%
   separate("name", c("PedigreeNew", "Variable"), sep = ":", remove = TRUE) %>%
-  mutate(Variable = if_else(is.na(Variable), "mu", Variable)) %>%
+  mutate(Variable = if_else(is.na(Variable), "Hybrid", Variable)) %>%
   full_join(., mus, by = c("Variable" = "name")) %>%
-  mutate(Value = value.x + value.y) %>%
+  mutate(Value = if_else(!is.na(value.y), value.x + value.y, value.x)) %>%
   select(-value.x, -value.y)
+
+# Compute MSE for each hybrid
+mu <- mean(gibbs[, "mu"])
+model_mat <- cbind(model.matrix(~ 0 + factor(Site) + TMIN_X0.225_X0.45 + TMIN_X0.45_X1.1 + 
+                                  TMAX_X0.75_X0.95 + PPT_X0.1_X0.225 + NET_X0.425_X1.125, 
+                                data = data)[, -1], 
+                   model.matrix(~ 0 + factor(PedigreeNew), data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMIN_X0.225_X0.45, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMIN_X0.45_X1.1, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMAX_X0.75_X0.95, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):PPT_X0.1_X0.225, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0.425_X1.125, data = data))
+colnames(model_mat) <- if_else(str_detect(colnames(model_mat), "factor"), 
+                               str_replace(colnames(model_mat), "factor\\(PedigreeNew\\)", ""), # %>%
+                               #   str_split(., ":") %>%
+                               #   sapply(., function(x) paste(rev(x), collapse = ":")), 
+                               colnames(model_mat))
+beta_hat <- params %>%
+  slice(1:4261) %>%
+  filter(!str_detect(name, "var"))
+idx <- match(colnames(model_mat), beta_hat$name)
+beta_hat <- beta_hat[idx, ]
+
+y_hat <- drop(mu + model_mat %*% matrix(beta_hat$value, ncol = 1))
+ped <- data %>%
+  mutate(E = BLUE - y_hat) %>%
+  select(PedigreeNew, E) %>%
+  group_by(PedigreeNew) %>%
+  summarise(Value = log(mean(E^2))) %>%
+  ungroup() %>%
+  mutate(Variable = "lnMSE") %>%
+  select(PedigreeNew, Variable, Value) %>%
+  bind_rows(., ped)
 
 ggplot(ped, aes(x = Value)) + theme_classic() +
   geom_density() + facet_wrap(~ Variable, scales = "free") + 
