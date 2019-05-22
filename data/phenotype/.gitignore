@@ -17,3 +17,7 @@ yield_stage_one_all_agron0.rds
 yield_stage_one_all_agron40.rds
 yield_stage_one_gbs_agron0.rds
 yield_blue_env_fused.rds
+joint_rxn_norm_model.rds
+rxn_norm_parameters.rds
+yield_blue_final.rds
+yield_site_final.rds
