@@ -229,6 +229,9 @@ for (i in seq_along(maf)) {
     hyb[idx2, i] <- 0
     
     maf[i] <- 1 - maf[i]
+    GM$Alleles[i] <- str_split(GM$Alleles[i], ",") %>%
+      unlist(use.names = FALSE) %>%
+      rev() %>% paste(., collapse = ",")
   }
 }
 

@@ -191,5 +191,6 @@ ped <- data %>%
 ggplot(ped, aes(x = Value)) + theme_classic() +
   geom_density() + facet_wrap(~ Variable, scales = "free") + 
   labs(x = "", y = "Density")
+ggsave("figures/select/rxn_norm_density.pdf", width = 8, height = 5, units = "in", dpi = 300)
 
 write_rds(ped, "data/phenotype/rxn_norm_parameters.rds")

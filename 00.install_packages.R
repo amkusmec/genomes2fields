@@ -3,7 +3,8 @@
 install.packages(c("devtools", "tidyverse", "lubridate", "lutz", "prism", 
                    "purrrlyr", "jsonlite", "readxl", "mgcv", "sommer", 
                    "evolqg", "tensorBSS", "WGCNA", "randomForest", 
-                   "glmnet", "SGL", "spikeslab", "lme4", "orthopolynorm"))
+                   "glmnet", "SGL", "spikeslab", "lme4", "orthopolynorm", 
+                   "rrBLUP"))
 
 ### Ubuntu 14.04 requires the installation of an old version of `rgdal`
 devtools::install_version("rgdal", version = "1.2-20", 

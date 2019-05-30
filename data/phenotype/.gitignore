@@ -21,3 +21,5 @@ joint_rxn_norm_model.rds
 rxn_norm_parameters.rds
 yield_blue_final.rds
 yield_site_final.rds
+single_trait_predictions.rds
+single_trait_predictions_rkhs.rds
