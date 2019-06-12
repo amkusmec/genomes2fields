@@ -90,18 +90,20 @@ munge <- munge %>%
          TAVG = 0.5*(T2M_MAX + T2M_MIN), 
          d = 4098*(0.6108*exp(17.27*TAVG/(TAVG + 237.3)))/(TAVG + 237.3)^2, 
          ET = (0.408*d*Rn + g*(900/(TAVG + 273))*WS2M*(es - ea))/(d + g*(1 + 0.34*WS2M))) %>%
-  select(Year:ALLSKY_SFC_SW_DWN, ET) %>%
+  select(Year:ALLSKY_SFC_SW_DWN, SG_DAY_HOUR_AVG, ET) %>%
   rename(SR = ALLSKY_SFC_SW_DWN)
 
 
-# Calculate developmental time in crop heat units (CHU) -------------------
+# Calculate developmental time in photothermal time -----------------------
+# PTT = SG_DAY_HOUR_AVG*CHU
 munge <- munge %>%
   mutate(Tm = if_else(TMIN < 4.4, 4.4, TMIN), 
          TM = if_else(TMAX < 10, 10, TMAX), 
          CHUm = 1.8*(Tm - 4.4), 
          CHUM = 3.33*(TM - 10) - 0.084*(TM - 10)^2, 
-         CHU = 0.5*(CHUM + CHUm)) %>%
-  select(Year:ET, CHU)
+         CHU = 0.5*(CHUM + CHUm),
+         PTT = SG_DAY_HOUR_AVG*CHU) %>%
+  select(Year:SR, ET, PTT)
 
 
 # Calculate net precipitation since planting ------------------------------
