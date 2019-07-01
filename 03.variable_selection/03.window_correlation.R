@@ -23,8 +23,7 @@ for (i in seq_along(variables)) {
     gather(Site2, R, -Site1) %>%
     ggplot(., aes(x = Site1, y = Site2, fill = R)) + theme_bw() +
       geom_raster() + labs(x = "", y = "", fill = "r") +
-      scale_fill_distiller(type = "div", palette = "RdBu", 
-                           direction = -1, limits = c(-1, 1)) +
+      scale_fill_distiller(type = "div", palette = "RdBu", direction = -1) +
       theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
       ggtitle(titles[[i]])
   ggsave(paste0("figures/select/", variables[i], "_0.025.pdf"), width = 10, 
@@ -41,8 +40,7 @@ windows %>%
   gather(End2, R, -End1) %>%
   ggplot(., aes(x = End1, y = End2, fill = R)) + theme_bw() +
     geom_raster() + labs(x = "", y = "", fill = "r") +
-    scale_fill_distiller(type = "div", palette = "RdBu", 
-                         direction = -1, limits = c(-1, 1)) +
+    scale_fill_distiller(type = "div", palette = "RdBu", direction = -1) +
     theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
     ggtitle("Net evapotranspiration (0%)")
 ggsave("figures/select/NET_0.pdf", width = 10, height = 8, units = "in", dpi = 300)
@@ -57,8 +55,7 @@ windows %>%
   gather(End2, R, -End1) %>%
   ggplot(., aes(x = End1, y = End2, fill = R)) + theme_bw() +
     geom_raster() + labs(x = "", y = "", fill = "r") +
-    scale_fill_distiller(type = "div", palette = "RdBu", 
-                         direction = -1, limits = c(-1, 1)) +
+    scale_fill_distiller(type = "div", palette = "RdBu", direction = -1) +
     theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
     ggtitle(expression(paste(T[min], " (0%)")))
 ggsave("figures/select/TMIN_0.pdf", width = 10, height = 8, units = "in", dpi = 300)

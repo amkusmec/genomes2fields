@@ -29,3 +29,5 @@ susie_all.rds
 susie_select.rds
 fused_bic.rds
 fused_windows.rds
+ga_het_resid.rds
+ga_windows.csv

@@ -13,18 +13,18 @@ yield <- read_rds("data/phenotype/yield_munged.rds") %>%
     a <- weather %>%
       filter(Environment == r$Environment, Date >= r$Planted, 
              Date <= r$Anthesis) %>%
-      summarise(A = sum(CHU, na.rm = TRUE)) %>%
+      summarise(A = sum(PTT, na.rm = TRUE)) %>%
       unlist()
     
-    tibble(CHUA = a)
+    tibble(PTTA = a)
   }, .collate = "rows") %>%
   select(-.row) %>%
   mutate(Site = paste(Environment, Year, sep = "_"))
 
 cutoffs <- yield %>%
   group_by(Site) %>%
-  summarise(Lower = quantile(CHUA, 0.025), 
-            Upper = quantile(CHUA, 0.975)) %>%
+  summarise(Lower = quantile(PTTA, 0.025), 
+            Upper = quantile(PTTA, 0.975)) %>%
   ungroup()
 
 sites <- weather %>%
@@ -33,7 +33,7 @@ sites <- weather %>%
   unique()
 yield <- inner_join(yield, cutoffs, by = "Site") %>%
   filter(Site %in% sites) %>%
-  filter(CHUA >= Lower, CHUA <= Upper) %>%
+  filter(PTTA >= Lower, PTTA <= Upper) %>%
   select(-Lower, -Upper)
 
 

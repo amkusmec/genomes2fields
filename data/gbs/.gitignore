@@ -433,3 +433,13 @@ ref_acc.log
 rils_to_keep.txt
 synthetic_hybrids.rds
 add_K.rds
+g2f_hyb.fam
+g2f_hyb.map
+g2f_hyb.ped
+g2f_hyb.vcf
+g2f_hyb_bin.bed
+g2f_hyb_bin.bim
+g2f_hyb_bin.fam
+g2f_hyb_bin.log
+ld_decay.rds
+ld_unc_decay.rds
