@@ -12,41 +12,44 @@ ped_site <- data %>%
   dplyr::select(Site, PedigreeNew) %>%
   split(., .$Site)
 
-# Get the selected environmental variables
-ga <- read_rds("data/weather/ga_select_R.rds")[["TXH1_2016"]]$ga$g[-1]
+ga <- c("NET_X0_X1.275", "NET_X0.65_X1.15", "PPT_X0.525_X0.7", "PPT_X0.4_X1.4", 
+        "TMAX_X0.05_X1.375")
 
-tibble(V = ga) %>%
-  separate(V, c("Variable", "Start", "End"), sep = "_", remove = TRUE) %>%
-  mutate_at(c("Start", "End"), str_replace, pattern = "X", replacement = "") %>%
-  mutate_at(c("Start", "End"), as.numeric) %>%
-  mutate(Ypos = factor(Variable) %>% as.integer(), 
-         Ypos = Ypos + c(0.125, -0.125, 0, 0, 0)) %>%
-  ggplot(.) + theme_classic() +
-    geom_segment(aes(x = Start, xend = End, y = Ypos, yend = Ypos, 
-                     colour = Variable), size = 2) +
-    geom_vline(xintercept = 1, linetype = 2) +
-    labs(x = "% CHU to anthesis", y = "") + guides(colour = "none") +
-    scale_colour_manual(values = c("TMIN" = "blue", "TMAX" = "red", "PPT" = 
-                                     "skyblue", "NET" = "orange")) +
-    scale_y_continuous(breaks = 1:4, labels = c("NET", "PPT", "TMAX", "TMIN")) +
-    scale_x_continuous(limits = c(0, 1.5), labels = scales::percent)
-ggsave("figures/select/final_variables.pdf", width = 6, height = 4, units = "in", dpi = 300)
+# # Get the selected environmental variables
+# ga <- read_rds("data/weather/ga_select_R.rds")[["TXH1_2016"]]$ga$g[-1]
+# 
+# tibble(V = ga) %>%
+#   separate(V, c("Variable", "Start", "End"), sep = "_", remove = TRUE) %>%
+#   mutate_at(c("Start", "End"), str_replace, pattern = "X", replacement = "") %>%
+#   mutate_at(c("Start", "End"), as.numeric) %>%
+#   mutate(Ypos = factor(Variable) %>% as.integer(), 
+#          Ypos = Ypos + c(0.125, -0.125, 0, 0, 0)) %>%
+#   ggplot(.) + theme_classic() +
+#     geom_segment(aes(x = Start, xend = End, y = Ypos, yend = Ypos, 
+#                      colour = Variable), size = 2) +
+#     geom_vline(xintercept = 1, linetype = 2) +
+#     labs(x = "% CHU to anthesis", y = "") + guides(colour = "none") +
+#     scale_colour_manual(values = c("TMIN" = "blue", "TMAX" = "red", "PPT" = 
+#                                      "skyblue", "NET" = "orange")) +
+#     scale_y_continuous(breaks = 1:4, labels = c("NET", "PPT", "TMAX", "TMIN")) +
+#     scale_x_continuous(limits = c(0, 1.5), labels = scales::percent)
+# ggsave("figures/select/final_variables.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 data <- data[, c("Site", "PedigreeNew", "BLUE", ga)]
 data <- data %>%
   separate(Site, c("Location", "Year"), sep = "_", remove = FALSE)
 
-# Save this data table for future use
-write_rds(data, "data/phenotype/yield_blue_final.rds")
-
-# A site-wise table for post hoc analysis of single-site results
-data %>%
-  group_by(Site) %>%
-  summarise_at(c("BLUE", "TMIN_X0.225_X0.45", "TMIN_X0.45_X1.1", 
-                 "TMAX_X0.75_X0.95", "PPT_X0.1_X0.225", "NET_X0.425_X1.125"), 
-               median) %>%
-  ungroup() %>%
-  write_rds(., "data/phenotype/yield_site_final.rds")
+# # Save this data table for future use
+# write_rds(data, "data/phenotype/yield_blue_final.rds")
+# 
+# # A site-wise table for post hoc analysis of single-site results
+# data %>%
+#   group_by(Site) %>%
+#   summarise_at(c("BLUE", "TMIN_X0.225_X0.45", "TMIN_X0.45_X1.1", 
+#                  "TMAX_X0.75_X0.95", "PPT_X0.1_X0.225", "NET_X0.425_X1.125"), 
+#                median) %>%
+#   ungroup() %>%
+#   write_rds(., "data/phenotype/yield_site_final.rds")
 
 
 # Center and scale the predictors -----------------------------------------
@@ -60,20 +63,20 @@ for (i in 6:10) {
 
 # Compute joint reaction norms --------------------------------------------
 # Construct a model object
-ETA <- list(fixed = list(~ factor(Site) + TMIN_X0.225_X0.45 + TMIN_X0.45_X1.1 + 
-                           TMAX_X0.75_X0.95 + PPT_X0.1_X0.225 + NET_X0.425_X1.125, 
+ETA <- list(fixed = list(~ factor(Site) + NET_X0_X1.275 + NET_X0.65_X1.15 + 
+                           PPT_X0.525_X0.7 + PPT_X0.4_X1.4 + TMAX_X0.05_X1.375, 
                          data = data, model = "FIXED", saveEffects = TRUE), 
             hybrid = list(~ 0 + factor(PedigreeNew), data = data, model = "BRR", 
                           saveEffects = TRUE), 
-            TMIN_X0.225_X0.45 = list(~ 0 + factor(PedigreeNew):TMIN_X0.225_X0.45, 
+            NET_X0_X1.275 = list(~ 0 + factor(PedigreeNew):NET_X0_X1.275, 
                                      data = data, model = "BRR", saveEffects = TRUE), 
-            TMIN_X0.45_X1.1 = list(~ 0 + factor(PedigreeNew):TMIN_X0.45_X1.1, 
+            NET_X0.65_X1.15 = list(~ 0 + factor(PedigreeNew):NET_X0.65_X1.15, 
                                    data = data, model = "BRR", saveEffects = TRUE), 
-            TMAX_X0.75_X0.95 = list(~ 0 + factor(PedigreeNew):TMAX_X0.75_X0.95, 
+            PPT_X0.525_X0.7 = list(~ 0 + factor(PedigreeNew):PPT_X0.525_X0.7, 
                                     data = data, model = "BRR", saveEffects = TRUE), 
-            PPT_X0.1_X0.225 = list(~ 0 + factor(PedigreeNew):PPT_X0.1_X0.225, 
+            PPT_X0.4_X1.4 = list(~ 0 + factor(PedigreeNew):PPT_X0.4_X1.4, 
                                    data = data, model = "BRR", saveEffects = TRUE), 
-            NET_X0.425_X1.125 = list(~ 0 + factor(PedigreeNew):NET_X0.425_X1.125, 
+            TMAX_X0.05_X1.375 = list(~ 0 + factor(PedigreeNew):TMAX_X0.05_X1.375, 
                                      data = data, model = "BRR", saveEffects = TRUE))
 
 # Construct groups for heterogeneous error variances
@@ -133,10 +136,12 @@ mcmc_res_list <- lapply(files, function(f) {
 }) %>%
   as.mcmc.list()
 
+# 4,309 parameters total
 gdiag <- geweke.diag(mcmc_res_list)
-idx <- lapply(gdiag, function(g) which(abs(g$z) >= 1.96))
-length(reduce(idx, intersect)) 
-# Each parameter is properly mixed in >= 3/4 chains
+idx <- lapply(gdiag, function(g) which(abs(g$z) < 1.96))
+length(reduce(idx, intersect)) # 3,333/4,309 (77%) parameters converged in all chains 
+length(reduce(idx, union)) # 100% parameters converged in at least one chain
+unlist(idx) %>% enframe() %>% count(value) %>% count(n)
 
 
 # Collect the Gibbs samples -----------------------------------------------
@@ -145,9 +150,7 @@ gibbs <- do.call("rbind", gibbs)
 params <- apply(gibbs, 2, mean) %>%
   enframe()
 
-mus <- filter(params, name %in% c("TMIN_X0.225_X0.45", "TMIN_X0.45_X1.1", 
-                                  "TMAX_X0.75_X0.95", "PPT_X0.1_X0.225", 
-                                  "NET_X0.425_X1.125"))
+mus <- filter(params, name %in% ga)
 ped <- filter(params, str_detect(name, "/")) %>%
   separate("name", c("PedigreeNew", "Variable"), sep = ":", remove = TRUE) %>%
   mutate(Variable = if_else(is.na(Variable), "Hybrid", Variable)) %>%
@@ -157,15 +160,15 @@ ped <- filter(params, str_detect(name, "/")) %>%
 
 # Compute MSE for each hybrid
 mu <- mean(gibbs[, "mu"])
-model_mat <- cbind(model.matrix(~ 0 + factor(Site) + TMIN_X0.225_X0.45 + TMIN_X0.45_X1.1 + 
-                                  TMAX_X0.75_X0.95 + PPT_X0.1_X0.225 + NET_X0.425_X1.125, 
+model_mat <- cbind(model.matrix(~ 0 + factor(Site) + NET_X0_X1.275 + NET_X0.65_X1.15 + 
+                                  PPT_X0.525_X0.7 + PPT_X0.4_X1.4 + TMAX_X0.05_X1.375, 
                                 data = data)[, -1], 
                    model.matrix(~ 0 + factor(PedigreeNew), data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):TMIN_X0.225_X0.45, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):TMIN_X0.45_X1.1, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):TMAX_X0.75_X0.95, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):PPT_X0.1_X0.225, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0.425_X1.125, data = data))
+                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0_X1.275, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0.65_X1.15, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):PPT_X0.525_X0.7, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):PPT_X0.4_X1.4, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMAX_X0.05_X1.375, data = data))
 colnames(model_mat) <- if_else(str_detect(colnames(model_mat), "factor"), 
                                str_replace(colnames(model_mat), "factor\\(PedigreeNew\\)", ""), # %>%
                                #   str_split(., ":") %>%

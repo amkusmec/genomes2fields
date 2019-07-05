@@ -2,9 +2,8 @@
 
 install.packages(c("devtools", "tidyverse", "lubridate", "lutz", "prism", 
                    "purrrlyr", "jsonlite", "readxl", "mgcv", "sommer", 
-                   "evolqg", "tensorBSS", "WGCNA", "randomForest", 
-                   "glmnet", "SGL", "spikeslab", "lme4", "orthopolynorm", 
-                   "rrBLUP"))
+                   "evolqg", "tensorBSS", "WGCNA", "lme4", "orthopolynorm", 
+                   "rrBLUP", "Rcpp", "RcppEigen"))
 
 ### Ubuntu 14.04 requires the installation of an old version of `rgdal`
 devtools::install_version("rgdal", version = "1.2-20", 
@@ -18,9 +17,7 @@ biocLite("qvalue")
 install.packages("isva")
 
 devtools::install_github("stephenslab/susieR@0.8.0")
+devtools::install_github("stephenslab/mashr")
 
-
-### Need to figure out how to install `ashr` directly and not as part of `mashr`
-### unless we end up using the latter after figuring out how to deal with the
-### missing data issue.
-
+devtools::install_github("amkusmec/FastMath")
+devtools::install_github("amkusmec/QGenTools")
