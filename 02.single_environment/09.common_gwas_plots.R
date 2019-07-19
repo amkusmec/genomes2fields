@@ -11,7 +11,7 @@ rm(blue); gc()
 # Scrape information from the log files -----------------------------------
 info <- seq_along(sites) %>%
   map_df(function(i) {
-    txt <- read_lines(paste0("data/gemma/output/common_single", i, ".log.txt"))
+    txt <- read_lines(paste0("data/single_site_gwas/output/common_single", i, ".log.txt"))
     txt <- txt[str_detect(txt, "analyzed") | str_detect(txt, "pve")]
     txt <- str_replace(txt, "## [:print:]* = ", "")
     tibble(Site = sites[i], Samples = txt[1], PVE = txt[3], SE = txt[4])
@@ -44,3 +44,9 @@ info %>%
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     scale_y_continuous(labels = scales::percent, limits = c(0, 1))
 ggsave("figures/single/gwas_plots/common_pve.pdf", width = 10, height = 6, units = "in", dpi = 300)
+
+
+# Relationships between sample size and PVE -------------------------------
+ggplot(info, aes(x = Samples, y = PVE)) + theme_classic() + geom_point()
+ggplot(info, aes(x = Samples, y = SE)) + theme_classic() + geom_point()
+ggplot(info, aes(x = PVE, y = SE)) + theme_classic() + geom_point()

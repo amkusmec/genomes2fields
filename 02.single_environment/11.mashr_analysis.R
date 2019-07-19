@@ -2,7 +2,7 @@ library(tidyverse)
 library(mashr)
 
 
-m2 <- read_rds("data/gemma/common_snp_mash.rds")
+m2 <- read_rds("data/single_site_gwas/common_snp_mash.rds")
 
 
 # Get the sites -----------------------------------------------------------
@@ -15,7 +15,7 @@ rm(blue); gc()
 # Scrape information from the log files -----------------------------------
 info <- seq_along(sites) %>%
   map_df(function(i) {
-    txt <- read_lines(paste0("data/gemma/output/common_single", i, ".log.txt"))
+    txt <- read_lines(paste0("data/single_site_gwas/output/common_single", i, ".log.txt"))
     txt <- txt[str_detect(txt, "analyzed") | str_detect(txt, "pve")]
     txt <- str_replace(txt, "## [:print:]* = ", "")
     tibble(Site = sites[i], Samples = txt[1])
@@ -57,7 +57,7 @@ ggsave("figures/single/mash_mix0.pdf", width = 8, height = 5, units = "in", dpi 
 
 # Explore major mixture components ----------------------------------------
 # Components that contribute > 0% and are not single-site components
-comps <- c("ED_1", "SFA_1", "SFA_4", "ED_3", "SFA_5")
+comps <- c("ED_1", "SFA_3", "SFA_4", "ED_3", "SFA_2")
 
 for (cc in comps) {
   # Reformat the covariance matrix
@@ -104,6 +104,7 @@ for (cc in comps) {
 # Number of significant conditions ----------------------------------------
 n_sig <- get_n_significant_conditions(m2)
 tibble(N_sig = n_sig) %>%
+  filter(N_sig > 0) %>%
   ggplot(., aes(x = N_sig)) + theme_classic() +
     geom_histogram(binwidth = 1, colour = "black", fill = "aquamarine", 
                    alpha = 0.8) +
@@ -112,7 +113,7 @@ ggsave("figures/single/sig_sites.pdf", width = 6, height = 4, units = "in", dpi 
 
 
 # Effective sample sizes --------------------------------------------------
-m_data <- read_rds("data/gemma/mash_data.rds")
+m_data <- read_rds("data/single_site_gwas/mash_data.rds")
 m_data <- lapply(m_data, function(m) m[rownames(m2$result$lfsr), ])
 ESS_factor <- apply(m_data$s_hat/m2$result$PosteriorSD, 2, median)
 info <- tibble(Site = names(ESS_factor), ESS_factor = ESS_factor) %>%
@@ -144,10 +145,10 @@ pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 # Sharing by sign
 sig_mat <- m2$result$lfsr <= 0.05
 nsig <- rowSums(sig_mat)
-sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 0.704
+sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 78.5%
 
 # Sharing by magnitude
-mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 0.032
+mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 3.0%
 
 ### A follow-up to this would be to reassess sharing within subsets of the
 ### environments a la the brain/non-brain distinction in Urbut et al.
@@ -264,8 +265,9 @@ ggsave("figures/single/mash_site_sharing.pdf", width = 8, height = 5,
 
 
 # Manhattan plot ----------------------------------------------------------
-hlfsr <- apply(m2$result$lfsr, 1, function(x) length(x)/sum(1/x))
-anno <- read_csv("data/gemma/snp_info.txt", col_names = FALSE) %>%
+# hlfsr <- apply(m2$result$lfsr, 1, function(x) length(x)/sum(1/x))
+hlfsr <- apply(m2$result$lfsr[, -19], 1, min)
+anno <- read_csv("data/single_site_gwas/snp_info.txt", col_names = FALSE) %>%
   rename(rs = X1, chr = X3, ps = X2) %>%
   full_join(., tibble(rs = names(hlfsr), pval = hlfsr), by = "rs") %>%
   mutate(pval = if_else(is.na(pval), 0.99999, pval))

@@ -3,10 +3,10 @@ library(mashr)
 
 
 # Load the GWAS results ---------------------------------------------------
-gwas <- list.files("data/gemma/output", "^common_single[0-9]{1,2}\\.assoc\\.txt", 
+gwas <- list.files("data/single_site_gwas/output", "^common_single[0-9]{1,2}\\.assoc\\.txt", 
                    full.names = TRUE) %>%
   map(read_tsv)
-site_idx <- list.files("data/gemma/output", "^common_single[0-9]{1,2}\\.assoc\\.txt") %>%
+site_idx <- list.files("data/single_site_gwas/output", "^common_single[0-9]{1,2}\\.assoc\\.txt") %>%
   str_replace(., "common_single", "") %>%
   str_replace(., "\\.assoc\\.txt", "") %>%
   as.integer()
@@ -20,7 +20,7 @@ S <- map(gwas, function(df) pull(df, se)) %>%
   bind_cols() %>% as.matrix()
 
 # Location-year-specific degrees of freedom
-df <- list.files("data/gemma/output", "^common_single[0-9]{1,2}\\.log\\.txt", 
+df <- list.files("data/single_site_gwas/output", "^common_single[0-9]{1,2}\\.log\\.txt", 
                  full.names = TRUE) %>%
   map_int(function(f) {
     temp <- read_lines(f)
@@ -41,7 +41,7 @@ sites <- sites[site_idx]
 
 names(gwas) <- colnames(B) <- colnames(S) <- colnames(df) <- sites
 rownames(B) <- rownames(S) <- rownames(df) <- gwas[[1]]$rs
-write_rds(list(beta_hat = B, s_hat = S, df = df), "data/gemma/mash_data.rds")
+write_rds(list(beta_hat = B, s_hat = S, df = df), "data/single_site_gwas/mash_data.rds")
 
 
 # Identify the strongest effects and a random subset of effects to approximate
@@ -76,13 +76,13 @@ U2 <- (svd_Z$v %*% diag(svd_Z$d[1:P])^2 %*% t(svd_Z$v))/ncol(Z)
 
 # Rank-Q approximation of Z using SFA
 Q <- 5
-write_tsv(as_tibble(Z), "data/gemma/centered_cov.txt", col_names = FALSE)
-system(paste0("./src/sfa/bin/sfa_linux -gen data/gemma/centered_cov.txt -g ", 
-              nrow(Z), " -n ", ncol(Z), " -k ", Q, " -o data/gemma/gemma_common"))
+write_tsv(as_tibble(Z), "data/single_site_gwas/centered_cov.txt", col_names = FALSE)
+system(paste0("./src/sfa/bin/sfa_linux -gen data/single_site_gwas/centered_cov.txt -g ", 
+              nrow(Z), " -n ", ncol(Z), " -k ", Q, " -o data/single_site_gwas/gemma_common"))
 
-L <- read_tsv("data/gemma/gemma_common_lambda.out", col_names = FALSE) %>%
+L <- read_tsv("data/single_site_gwas/gemma_common_lambda.out", col_names = FALSE) %>%
   as.matrix()
-FA <- read_tsv("data/gemma/gemma_common_F.out", col_names = FALSE) %>%
+FA <- read_tsv("data/single_site_gwas/gemma_common_F.out", col_names = FALSE) %>%
   as.matrix()
 
 U3 <- (t(FA) %*% t(L) %*% L %*% FA)/ncol(Z)
@@ -104,4 +104,4 @@ m <- mash(data_random, Ulist = c(U_ed, U_sfa, U_c), outputlevel = 1)
 m2 <- mash(data_strong, g = get_fitted_g(m), fixg = TRUE)
 snp_names <- gwas[[1]]$rs[strong_subset]
 for (i in 1:5) rownames(m2$result[[i]]) <- snp_names
-write_rds(m2, "data/gemma/common_snp_mash.rds")
+write_rds(m2, "data/single_site_gwas/common_snp_mash.rds")

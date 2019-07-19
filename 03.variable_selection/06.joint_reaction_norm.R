@@ -196,4 +196,18 @@ ggplot(ped, aes(x = Value)) + theme_classic() +
   labs(x = "", y = "Density")
 ggsave("figures/select/rxn_norm_density.pdf", width = 8, height = 5, units = "in", dpi = 300)
 
+rxn_cor <- cor(rxn[, -1])
+rxn_cor[upper.tri(rxn_cor, diag = FALSE)] <- NA
+as_tibble(rxn_cor, rownames = "Phenotype1") %>%
+  gather(Phenotype2, R, -Phenotype1) %>%
+  filter(!is.na(R)) %>%
+  mutate(Phenotype1 = factor(Phenotype1, levels = sort(unique(Phenotype1)), ordered = TRUE), 
+         Phenotype2 = factor(Phenotype2, levels = rev(sort(unique(Phenotype2))), ordered = TRUE)) %>%
+  ggplot(., aes(x = Phenotype1, y = Phenotype2, fill = R)) + theme_classic() +
+    geom_tile() + labs(x = "", y = "", fill = "") +
+    scale_fill_distiller(type = "div", palette = "RdBu", limits = c(-1, 1)) +
+    scale_x_discrete(position = "top") +
+    theme(axis.text.x = element_text(angle = 45, hjust = -0.0625))
+ggsave("figures/select/rxn_norm_cor.pdf", width = 7, height = 5, units = "in", dpi = 300)
+
 write_rds(ped, "data/phenotype/rxn_norm_parameters.rds")

@@ -11,3 +11,9 @@ gemma_common_alpha.out
 gemma_common_lambda.out
 gemma_common_sigma2.out
 mash_data.rds
+gemma_norm_F.out
+gemma_norm_alpha.out
+gemma_norm_lambda.out
+gemma_norm_sigma2.out
+norm_snp_mash.rds
+rxn_norm.txt
