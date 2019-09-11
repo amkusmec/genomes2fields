@@ -4,28 +4,8 @@ library(QGenTools)
 library(purrrlyr)
 library(GenomicRanges)
 
-est_distance <- function(ld, threshold = 0.3, k = 30) {
-  require(mgcv)
-  
-  init_gam <- gam(R2 ~ s(Bin, k = k, bs = "cr"), data = ld)
-  sm <- smoothCon(s(Bin, k = k, bs = "cr"), ld, knots = NULL)[[1]]
-  mc <- mono.con(sm$xp, up = FALSE)
-  M <- list(X = sm$X, y = ld$R2, C = matrix(0, 0, 0), Ain = mc$A, 
-            bin = mc$b, sp = init_gam$sp, p = -sm$xp, S = sm$S, 
-            w = ld$R2*0 + 1, off = 0)
-  p <- pcls(M)
-  if (all(is.nan(p))) {
-    min(ld$Bin)
-  } else {
-    x <- seq(min(ld$Bin), max(ld$Bin), 1e3)
-    y <- abs(drop(Predict.matrix(sm, data.frame(Bin = x)) %*% p) - threshold)
-    x[which.min(y)]
-  }
-}
-
-
-m2 <- read_rds("data/gemma/norm_snp_mash.rds")
-sig <- which(rowSums(apply(m2$result$lfsr, 2, function(x) x <= 0.05)) > 0)
+m2 <- read_rds("data/gemma/dominance/norm_dom_snp_mash.rds")
+sig <- which(rowSums(apply(m2$result$lfsr, 2, function(x) x <= 0.001)) > 0)
 sig <- tibble(SNP = rownames(m2$result$lfsr[sig, ])) %>%
   mutate(Chromosome = str_remove(SNP, "X") %>%
            str_remove(., "_[0-9]*") %>% as.integer(), 
@@ -35,43 +15,56 @@ sig <- tibble(SNP = rownames(m2$result$lfsr[sig, ])) %>%
   arrange(Chromosome, Position)
 
 snps <- read_rds("data/gbs/add_snps.rds")
-AB <- realized_ab(snps$GD)
-struct <- read_rds("data/gbs/pca_covariates.rds")
+GM <- snps$GM
+AB <- sommer::D.mat(snps$GD)
+snps <- apply(snps$GD, 2, function(x) if_else(near(x, 2), 0, if_else(near(x, 1.5), 0.5, x)))
+struct <- read_tsv("data/gemma/dominance/covariates_dom.txt", col_names = FALSE)
+struct <- as.matrix(struct[, -1])
+rownames(struct) <- rownames(snps)
+colnames(struct) <- paste0("PC", 1:ncol(struct))
 window <- 500
 
-for (s in 1:nrow(sig)) {
+for (s in 153:nrow(sig)) {
   cat(s, "/", nrow(sig), "\r")
   
   # Find the location of the SNP in the genome
-  chr <- which(snps$GM$Chromosome == sig$Chromosome[s])
-  idx <- which(snps$GM$SNP == sig$SNP[s])
+  chr <- which(GM$Chromosome == sig$Chromosome[s])
+  idx <- which(GM$SNP == sig$SNP[s])
   idx1 <- if_else(idx - window < min(chr), min(chr), as.integer(idx - window))
   idx2 <- if_else(idx + window < max(chr), as.integer(idx + window), max(chr))
   
   # LD decay upstream of the SNP
-  r2_up <- r2vs(snps$GD[, idx1:idx], AB, struct) %>%
-    mutate_at(c("Locus1", "Locus2"), as.character) %>%
-    filter(Locus1 == sig$SNP[s] | Locus2 == sig$SNP[s]) %>%
-    mutate(Locus1 = str_remove(Locus1, "X[0-9]{1,2}_") %>% as.integer, 
-           Locus2 = str_remove(Locus2, "X[0-9]{1,2}_") %>% as.integer, 
-           Bin = abs(Locus1 - Locus2)) %>%
-    arrange(Bin)
-  sig$Up[s] <- est_distance(r2_up, threshold = 0.05)
+  if (idx1 == idx) {
+    sig$Up[s] <- 0
+  } else {
+    r2_up <- r2vs(snps[, idx1:idx], AB, struct) %>%
+      mutate_at(c("Locus1", "Locus2"), as.character) %>%
+      filter(Locus1 == sig$SNP[s] | Locus2 == sig$SNP[s]) %>%
+      mutate(Locus1 = str_remove(Locus1, "X[0-9]{1,2}_") %>% as.integer, 
+             Locus2 = str_remove(Locus2, "X[0-9]{1,2}_") %>% as.integer, 
+             Bin = abs(Locus1 - Locus2)) %>%
+      arrange(Bin)
+    sig$Up[s] <- est_distance(r2_up, threshold = 0.05)
+  }
   
   # LD decay downstream of the SNP
-  r2_down <- r2vs(snps$GD[, idx:idx2], AB, struct) %>%
-    mutate_at(c("Locus1", "Locus2"), as.character) %>%
-    filter(Locus1 == sig$SNP[s] | Locus2 == sig$SNP[s]) %>%
-    mutate(Locus1 = str_remove(Locus1, "X[0-9]{1,2}_") %>% as.integer,
-           Locus2 = str_remove(Locus2, "X[0-9]{1,2}_") %>% as.integer, 
-           Bin = abs(Locus1 - Locus2)) %>%
-    arrange(Bin)
-  sig$Down[s] <- est_distance(r2_down, threshold = 0.05)
+  if (idx2 == idx) {
+    sig$Down[s] <- 0
+  } else {
+    r2_down <- r2vs(snps[, idx:idx2], AB, struct) %>%
+      mutate_at(c("Locus1", "Locus2"), as.character) %>%
+      filter(Locus1 == sig$SNP[s] | Locus2 == sig$SNP[s]) %>%
+      mutate(Locus1 = str_remove(Locus1, "X[0-9]{1,2}_") %>% as.integer, 
+             Locus2 = str_remove(Locus2, "X[0-9]{1,2}_") %>% as.integer, 
+             Bin = abs(Locus1 - Locus2)) %>%
+      arrange(Bin)
+    sig$Down[s] <- est_distance(r2_down, threshold = 0.05)
+  }
 }
 
 sig <- sig %>%
   by_row(function(r) {
-    s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.05)
+    s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.001)
     colnames(m2$result$lfsr)[s]
   }, .to = "Phenotype")
 sig$N_pheno <- sapply(sig$Phenotype, length)
@@ -94,8 +87,8 @@ geneRanges <- with(gff, GRanges(seqname = chr,
                                 ranges = IRanges(start = start, end = end), 
                                 ids = gene))
 
-# 26/28 (92.9%) ranges contain genes
-# 1,306 genes
+# 121/146 (82.9%) ranges contain genes
+# 2,601 genes
 genes <- findOverlaps(geneRanges, reduced, ignore.strand = TRUE)
 idx1 <- genes@from; idx2 <- genes@to
 
@@ -111,10 +104,9 @@ for (i in 1:nrow(gene_table)) {
     paste(., collapse = ", ")
   gene_table$Phenotypes[i] <- sig$Phenotype[s] %>% unlist() %>%
     unique() %>% sort() %>% paste(., collapse = ", ")
-  
 }
 
 gene_table <- gene_table %>%
   select(-revmap) %>%
   dplyr::rename(Chromosome = seqnames, Start = start, End = end)
-write_rds(gene_table, "data/gemma/candidate_genes.rds")
+write_rds(gene_table, "data/gemma/dominance/candidate_genes_dom.rds")

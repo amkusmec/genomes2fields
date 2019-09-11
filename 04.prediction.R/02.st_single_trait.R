@@ -5,7 +5,7 @@ library(rrBLUP)
 
 # Prepare the data --------------------------------------------------------
 snps <- read_rds("data/gbs/add_snps.rds")
-K <- realized_ab(snps$GD)
+K <- A.mat(snps$GD)
 
 pcs <- read_rds("data/gbs/pca_covariates.rds") %>%
   as_tibble(., rownames = "PedigreeNew")
@@ -16,6 +16,7 @@ idx <- match(pcs$PedigreeNew, pheno$PedigreeNew)
 pheno <- pheno[idx, ]
 
 pheno <- bind_cols(pheno, dplyr::select(pcs, -PedigreeNew))
+pheno <- as.data.frame(pheno)
 
 
 # Assign subpopulations ---------------------------------------------------
@@ -51,30 +52,54 @@ pred <- lapply(1:length(sets), function(s) { # Set size
       pheno$Masked <- pheno[[p]]
       idx <- which(pheno$PedigreeNew %in% sets[[s]][[r]])
       pheno$Masked[-idx] <- NA
-      ans <- mixed.solve(y = pheno$Masked, X = cbind(matrix(1, ncol = 1, nrow = nrow(pheno)), 
-                                                            pheno[, 9:17]), K = K)
-      c(cor(pheno[[p]][-idx], ans$u[-idx], method = "pearson"), 
-        cor(pheno[[p]][-idx], ans$u[-idx], method = "kendall"))
+      # ans <- mixed.solve(y = pheno$Masked, X = cbind(matrix(1, ncol = 1, nrow = nrow(pheno)), 
+      #                                                       pheno[, 9:17]), K = K)
+      ans <- kin.blup(pheno, "PedigreeNew", "Masked", K = K, 
+                      covariate = paste0("PC", 1:9))
+      # c(cor(pheno[[p]][-idx], ans$u[-idx], method = "pearson"), 
+      #   cor(pheno[[p]][-idx], ans$u[-idx], method = "kendall"))
+      u <- rep(NA, nrow(pheno))
+      u[-idx] <- ans$pred[-idx]
+      u
     })
-    rownames(temp) <- c("Pearson", "Kendall")
+    # rownames(temp) <- c("Pearson", "Kendall")
+    # colnames(temp) <- colnames(pheno)[2:8]
+    # as_tibble(t(temp), rownames = "Phenotype") %>%
+    #   mutate(Replicate = r)
     colnames(temp) <- colnames(pheno)[2:8]
-    as_tibble(t(temp), rownames = "Phenotype") %>%
-      mutate(Replicate = r)
-  }) %>%
-    bind_rows() %>%
-    mutate(Size = sizes[s])
-}) %>%
-  bind_rows()
+    temp
+  })
+  names(rr) <- make.names(1:100)
+  rr
+})
+names(pred) <- make.names(sizes)
 
 write_rds(pred, "data/phenotype/st_single_trait_predictions.rds")
 
 # Apply Fisher's transform to calculate means and standard errors
+cors <- map_df(pred, function(l) {
+  map_df(l, function(m) {
+    tt <- sapply(1:ncol(m), function(x) {
+      c(cor(m[, x], pheno[[x + 1]], method = "pearson", use = "complete.obs"), 
+        cor(m[, x], pheno[[x + 1]], method = "kendall", use = "complete.obs"))
+    }) %>%
+      t()
+    rownames(tt) <- names(pheno)[2:8]
+    colnames(tt) <- c("Pearson", "Kendall")
+    as_tibble(tt, rownames = "Phenotype")
+  })
+}) %>%
+  mutate(Size = rep(names(pred), each = 700) %>% str_remove(., "X") %>% as.integer(), 
+         Replicate = rep(rep(1:100, each = 7), times = length(sizes))) %>%
+  gather(Measure, Value, Pearson:Kendall) %>%
+  select(Size, Replicate, Phenotype, Measure, Value)
 
-pred %>%
-  group_by(Phenotype, Size) %>%
-  summarise(Mean = mean(0.5*log((1 + Pearson)/(1 - Pearson))), 
-            SE = sd(0.5*log((1 + Pearson)/(1 - Pearson)))/sqrt(n())) %>%
-  ungroup() %>%
-  ggplot(., aes(x = Size, y = Mean, group = Phenotype)) + theme_classic() +
-    geom_line(aes(colour = Phenotype)) + 
-    geom_pointrange(aes(colour = Phenotype, ymin = Mean - SE, ymax = Mean + SE))
+cors %>%
+  mutate(Measure = factor(Measure), 
+         Size = factor(Size)) %>%
+  ggplot(., aes(x = Size, y = Value)) + theme_bw() + facet_wrap(~ Phenotype) + 
+    geom_boxplot(aes(fill = Measure), outlier.colour = "red", outlier.shape = 1) +
+    scale_fill_manual(values = c("Pearson" = "palegreen", "Kendall" = "skyblue")) + 
+    labs(x = "Training Set Size", y = "Prediction Accuracy")
+ggsave("figures/prediction/st_single_trait_accuracy.pdf", width = 8, height = 6, 
+       units = "in", dpi = 300)

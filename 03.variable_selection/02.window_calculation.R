@@ -9,29 +9,29 @@ weather <- read_rds("data/weather/env_variables.rds") %>%
   mutate(Site = paste(Environment, Year, sep = "_"), 
          Date = paste(Year, Month, Day, sep = "-") %>% ymd())
 
-# Hybrids within sites are summarized by the mean PTT to anthesis and planting
+# Hybrids within sites are summarized by the mean CHU to anthesis and planting
 # dates. Because there are never more than 2 replicates of a hybrid within a 
 # site, the mean and median are identical.
 yield <- read_rds("data/phenotype/yield_agron0.rds") %>%
-  select(Site, PedigreeNew, PTTA, Planted, Harvested) %>%
+  select(Site, PedigreeNew, CHUA, Planted, Harvested) %>%
   group_by(Site, PedigreeNew) %>%
-  summarise(PTTA = mean(PTTA), 
+  summarise(CHUA = mean(CHUA), 
             Planted = mean(Planted), 
             Harvested = mean(Harvested)) %>%
   ungroup()
 
 
 # Find the dates to define windows ----------------------------------------
-# Date on which a hybrid accumulates PTT equal to 2.5% increments of 140%
-# PTT to anthesis
-thresholds <- seq(0.025, 1.4, 0.025)
+# Date on which a hybrid accumulates CHU equal to 2.5% increments of 150%
+# CHU to anthesis
+thresholds <- seq(0.025, 1.5, 0.025)
 dates <- yield %>%
   by_row(function(r) {
     temp <- weather %>%
       filter(Site == r$Site, Date >= r$Planted, Date <= r$Harvested)
-    ptt <- cumsum(temp$PTT)/r$PTTA
+    chu <- cumsum(temp$CHU)/r$CHUA
     indices <- map_int(thresholds, function(x) {
-      as.integer(min(which(ptt - x >= 0)))
+      as.integer(min(which(chu - x >= 0)))
     })
     ymd(temp$Date[indices])
   }, .collate = "cols", .labels = FALSE) %>%
@@ -100,7 +100,7 @@ blue <- blue %>%
 
 yield <- cbind(yield, res) %>%
   inner_join(., blue, by = c("Site", "PedigreeNew")) %>%
-  select(-PTTA, -Planted, -Harvested) %>%
+  select(-CHUA, -Planted, -Harvested) %>%
   select(Site, PedigreeNew, BLUE, everything())
 
 

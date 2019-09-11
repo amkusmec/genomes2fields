@@ -6,14 +6,11 @@ library(coda)
 
 # Load the data -----------------------------------------------------------
 # Phenotype and weather data
-data <- read_rds("data/phenotype/yield_blue_env.rds") %>%
-  filter(!str_detect(Site, "2017$"))
-ped_site <- data %>%
-  dplyr::select(Site, PedigreeNew) %>%
-  split(., .$Site)
+data <- read_rds("data/phenotype/yield_blue_final.rds") %>%
+  separate(Site, c("Location", "Year"), sep = "_", remove = FALSE)
 
-ga <- c("NET_X0_X1.275", "NET_X0.65_X1.15", "PPT_X0.525_X0.7", "PPT_X0.4_X1.4", 
-        "TMAX_X0.05_X1.375")
+ga <- c("NET_X0.025_X0.45", "NET_X0.65_X1.275", "TMAX_X0.775_X0.875", 
+        "TMIN_X0.05_X1.5", "TMIN_X0.15_X0.65")
 
 # # Get the selected environmental variables
 # ga <- read_rds("data/weather/ga_select_R.rds")[["TXH1_2016"]]$ga$g[-1]
@@ -35,48 +32,32 @@ ga <- c("NET_X0_X1.275", "NET_X0.65_X1.15", "PPT_X0.525_X0.7", "PPT_X0.4_X1.4",
 #     scale_x_continuous(limits = c(0, 1.5), labels = scales::percent)
 # ggsave("figures/select/final_variables.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
-data <- data[, c("Site", "PedigreeNew", "BLUE", ga)]
-data <- data %>%
-  separate(Site, c("Location", "Year"), sep = "_", remove = FALSE)
-
-# # Save this data table for future use
-# write_rds(data, "data/phenotype/yield_blue_final.rds")
-# 
-# # A site-wise table for post hoc analysis of single-site results
-# data %>%
-#   group_by(Site) %>%
-#   summarise_at(c("BLUE", "TMIN_X0.225_X0.45", "TMIN_X0.45_X1.1", 
-#                  "TMAX_X0.75_X0.95", "PPT_X0.1_X0.225", "NET_X0.425_X1.125"), 
-#                median) %>%
-#   ungroup() %>%
-#   write_rds(., "data/phenotype/yield_site_final.rds")
-
 
 # Center and scale the predictors -----------------------------------------
-means <- apply(data[, 6:10], 2, mean)
-sds <- apply(data[, 6:10], 2, sd)
+means <- apply(data[, 7:11], 2, mean)
+sds <- apply(data[, 7:11], 2, sd)
 
-for (i in 6:10) {
-  data[[i]] <- (data[[i]] - means[i - 5])/sds[i - 5]
+for (i in 7:11) {
+  data[[i]] <- (data[[i]] - means[i - 6])/sds[i - 6]
 }
 
 
 # Compute joint reaction norms --------------------------------------------
 # Construct a model object
-ETA <- list(fixed = list(~ factor(Site) + NET_X0_X1.275 + NET_X0.65_X1.15 + 
-                           PPT_X0.525_X0.7 + PPT_X0.4_X1.4 + TMAX_X0.05_X1.375, 
+ETA <- list(fixed = list(~ factor(Site) + NET_X0.025_X0.45 + NET_X0.65_X1.275 + 
+                           TMAX_X0.775_X0.875 + TMIN_X0.05_X1.5 + TMIN_X0.15_X0.65, 
                          data = data, model = "FIXED", saveEffects = TRUE), 
             hybrid = list(~ 0 + factor(PedigreeNew), data = data, model = "BRR", 
                           saveEffects = TRUE), 
-            NET_X0_X1.275 = list(~ 0 + factor(PedigreeNew):NET_X0_X1.275, 
+            NET_X0.025_X0.45 = list(~ 0 + factor(PedigreeNew):NET_X0.025_X0.45, 
                                      data = data, model = "BRR", saveEffects = TRUE), 
-            NET_X0.65_X1.15 = list(~ 0 + factor(PedigreeNew):NET_X0.65_X1.15, 
+            NET_X0.65_X1.275 = list(~ 0 + factor(PedigreeNew):NET_X0.65_X1.275, 
                                    data = data, model = "BRR", saveEffects = TRUE), 
-            PPT_X0.525_X0.7 = list(~ 0 + factor(PedigreeNew):PPT_X0.525_X0.7, 
+            TMAX_X0.775_X0.875 = list(~ 0 + factor(PedigreeNew):TMAX_X0.775_X0.875, 
                                     data = data, model = "BRR", saveEffects = TRUE), 
-            PPT_X0.4_X1.4 = list(~ 0 + factor(PedigreeNew):PPT_X0.4_X1.4, 
+            TMIN_X0.05_X1.5 = list(~ 0 + factor(PedigreeNew):TMIN_X0.05_X1.5, 
                                    data = data, model = "BRR", saveEffects = TRUE), 
-            TMAX_X0.05_X1.375 = list(~ 0 + factor(PedigreeNew):TMAX_X0.05_X1.375, 
+            TMIN_X0.15_X0.65 = list(~ 0 + factor(PedigreeNew):TMIN_X0.15_X0.65, 
                                      data = data, model = "BRR", saveEffects = TRUE))
 
 # Construct groups for heterogeneous error variances
@@ -99,7 +80,7 @@ write_rds(rxn, "data/phenotype/joint_rxn_norm_model.rds")
 
 # Check chain convergence -------------------------------------------------
 site_levels <- sort(unique(data$Site))
-files <- list.files("data/bglr", "*", full.names = TRUE) %>%
+files <- list.files("data/bglr", "*\\.", full.names = TRUE) %>%
   split(., rep(1:4, each = 15))
 mcmc_res_list <- lapply(files, function(f) {
   temp <- lapply(f, function(f2) {
@@ -139,7 +120,7 @@ mcmc_res_list <- lapply(files, function(f) {
 # 4,309 parameters total
 gdiag <- geweke.diag(mcmc_res_list)
 idx <- lapply(gdiag, function(g) which(abs(g$z) < 1.96))
-length(reduce(idx, intersect)) # 3,333/4,309 (77%) parameters converged in all chains 
+length(reduce(idx, intersect)) # 3,377/4,309 (78%) parameters converged in all chains 
 length(reduce(idx, union)) # 100% parameters converged in at least one chain
 unlist(idx) %>% enframe() %>% count(value) %>% count(n)
 
@@ -160,15 +141,15 @@ ped <- filter(params, str_detect(name, "/")) %>%
 
 # Compute MSE for each hybrid
 mu <- mean(gibbs[, "mu"])
-model_mat <- cbind(model.matrix(~ 0 + factor(Site) + NET_X0_X1.275 + NET_X0.65_X1.15 + 
-                                  PPT_X0.525_X0.7 + PPT_X0.4_X1.4 + TMAX_X0.05_X1.375, 
+model_mat <- cbind(model.matrix(~ 0 + factor(Site) + NET_X0.025_X0.45 + NET_X0.65_X1.275 + 
+                                  TMAX_X0.775_X0.875 + TMIN_X0.05_X1.5 + TMIN_X0.15_X0.65, 
                                 data = data)[, -1], 
                    model.matrix(~ 0 + factor(PedigreeNew), data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0_X1.275, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0.65_X1.15, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):PPT_X0.525_X0.7, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):PPT_X0.4_X1.4, data = data),
-                   model.matrix(~ 0 + factor(PedigreeNew):TMAX_X0.05_X1.375, data = data))
+                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0.025_X0.45, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):NET_X0.65_X1.275, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMAX_X0.775_X0.875, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMIN_X0.05_X1.5, data = data),
+                   model.matrix(~ 0 + factor(PedigreeNew):TMIN_X0.15_X0.65, data = data))
 colnames(model_mat) <- if_else(str_detect(colnames(model_mat), "factor"), 
                                str_replace(colnames(model_mat), "factor\\(PedigreeNew\\)", ""), # %>%
                                #   str_split(., ":") %>%
@@ -196,7 +177,10 @@ ggplot(ped, aes(x = Value)) + theme_classic() +
   labs(x = "", y = "Density")
 ggsave("figures/select/rxn_norm_density.pdf", width = 8, height = 5, units = "in", dpi = 300)
 
-rxn_cor <- cor(rxn[, -1])
+rxn_cor <- ped %>%
+  spread(Variable, Value) %>%
+  select(-PedigreeNew) %>%
+  cor()
 rxn_cor[upper.tri(rxn_cor, diag = FALSE)] <- NA
 as_tibble(rxn_cor, rownames = "Phenotype1") %>%
   gather(Phenotype2, R, -Phenotype1) %>%
@@ -211,3 +195,22 @@ as_tibble(rxn_cor, rownames = "Phenotype1") %>%
 ggsave("figures/select/rxn_norm_cor.pdf", width = 7, height = 5, units = "in", dpi = 300)
 
 write_rds(ped, "data/phenotype/rxn_norm_parameters.rds")
+
+
+# Estimate the effect of indices on environmental quality -----------------
+e_main <- params %>%
+  filter(str_detect(name, "Site")) %>%
+  mutate(name = str_remove(name, "factor\\(Site\\)")) %>%
+  rename(Site = name, Value = value) %>%
+  bind_rows(., tibble(Site = "ARH1_2016", Value = 0)) %>%
+  arrange(Site)
+e_sum <- data %>%
+  group_by(Site) %>%
+  summarise_at(vars(NET_X0.025_X0.45:TMIN_X0.15_X0.65), median) %>%
+  ungroup()
+e_main <- inner_join(e_main, e_sum, by = "Site")
+
+model <- lm(Value ~ . - 1 - Site, data = e_main)
+enframe(coef(model)) %>%
+  rename(Variable = name, Coefficient = value) %>%
+  write_csv(., "data/phenotype/env_coef.csv")

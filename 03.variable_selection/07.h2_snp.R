@@ -1,5 +1,4 @@
 library(tidyverse)
-library(QGenTools)
 library(sommer)
 
 rxn <- read_rds("data/phenotype/rxn_norm_parameters.rds") %>%

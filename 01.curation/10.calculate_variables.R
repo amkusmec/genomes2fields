@@ -101,9 +101,8 @@ munge <- munge %>%
          TM = if_else(TMAX < 10, 10, TMAX), 
          CHUm = 1.8*(Tm - 4.4), 
          CHUM = 3.33*(TM - 10) - 0.084*(TM - 10)^2, 
-         CHU = 0.5*(CHUM + CHUm),
-         PTT = SG_DAY_HOUR_AVG*CHU) %>%
-  select(Year:SR, ET, PTT)
+         CHU = 0.5*(CHUM + CHUm)) %>%
+  select(Year:SR, ET, CHU)
 
 
 # Calculate net precipitation since planting ------------------------------

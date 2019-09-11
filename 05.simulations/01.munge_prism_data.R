@@ -157,8 +157,13 @@ for (i in seq_along(sites)) {
 # Construct site files ----------------------------------------------------
 for (i in seq_along(sites)) {
   fname <- paste0("data/lars/historical/", sites[i], "_historical.st")
-  cat("[SITE]\n", sites[i], "\n", "[LAT, LON, and ALT]\n", meta$Latitude[i], 
-      "\t", meta$Longitude[i], "\t", meta$Elevation[i], "\n", 
-      "[WEATHER FILES]\n", "---PLACEHOLDER---\n", "[FORMAT]\n", 
-      "YEAR JDAY MIN MAX RAIN RAD\n", "[END]\n", file = fname, sep = "")
+  cat("[SITE]", 
+      sites[i], 
+      "[LAT, LON and ALT]", 
+      paste(meta$Latitude[i], meta$Longitude[i], meta$Elevation[i], collapse = "\t"), 
+      "[WEATHER FILES]", 
+      paste0("D:\\Aaron\\lars\\historical\\", sites[i], "_historical.sr"), 
+      "[FORMAT]", 
+      "YEAR JDAY MIN MAX RAIN RAD", 
+      "[END]", file = fname, sep = "\n")
 }

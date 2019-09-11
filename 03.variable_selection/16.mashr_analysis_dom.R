@@ -1,14 +1,13 @@
 library(tidyverse)
 library(mashr)
 
-
-m2 <- read_rds("data/gemma/norm_snp_mash.rds")
+m2 <- read_rds("data/gemma/dominance/norm_dom_snp_mash.rds")
 
 
 # Get the phenotypes ------------------------------------------------------
-phenotypes <- list.files("data/gemma/output", "*\\.assoc\\.txt") %>%
+phenotypes <- list.files("data/gemma/dominance/output", "*\\.assoc\\.txt") %>%
   str_remove(., "norm_") %>%
-  str_remove(., "\\.assoc\\.txt")
+  str_remove(., "_dom\\.assoc\\.txt")
 
 
 # Mixture components for covariance structures ----------------------------
@@ -25,9 +24,10 @@ colSums(pi_mat) %>% enframe(name = "Matrix") %>%
     theme(axis.text.x = element_text(angle = 45, hjust = 1), 
           panel.grid.minor.x = element_blank(), 
           panel.grid.major.x = element_blank())
-ggsave("figures/select/mash_mix.pdf", width = 10, height = 5, units = "in", dpi = 300)
+ggsave("figures/select/mash_mix_dom.pdf", width = 10, height = 5, units = "in", 
+       dpi = 300)
 
-# Summarize mixture components that account for >0% of the components
+# Summarize mixture components that account >0% of the components
 colSums(pi_mat) %>% enframe(name = "Matrix") %>%
   filter(value > 0) %>%
   bind_rows(., tibble(Matrix = "Null", value = m2$fitted_g$pi[1])) %>%
@@ -40,15 +40,16 @@ colSums(pi_mat) %>% enframe(name = "Matrix") %>%
     theme(axis.text.x = element_text(angle = 45, hjust = 1), 
           panel.grid.minor.x = element_blank(), 
           panel.grid.major.x = element_blank())
-ggsave("figures/select/mash_mix0.pdf", width = 8, height = 5, units = "in", dpi = 300)
+ggsave("figures/select/mash_mix0_dom.pdf", width = 8, height = 5, units = "in", 
+       dpi = 300)
 
 
 # Explore mixture components ----------------------------------------------
 # Components that contribute >0% and are not single-phenotype components
-comps <- c("ED_1", "ED_3", "SFA_3", "SFA_2")
+comps <- c("ED_1", "ED_3", "ED_2")
 
 for (cc in comps) {
-  # Reformat the covariance matrix
+  # Reform the covariance matrix
   x <- cov2cor(m2$fitted_g$Ulist[[cc]])
   rownames(x) <- colnames(x) <- colnames(m2$result$lfsr)
   x <- x[order(rownames(x)), order(colnames(x))]
@@ -65,7 +66,7 @@ for (cc in comps) {
       scale_fill_distiller(type = "div", palette = "RdBu", limits = c(-1, 1)) +
       scale_x_discrete(position = "top") +
       theme(axis.text.x = element_text(angle = 45, hjust = -0.0625))
-  ggsave(paste0("figures/select/mash_", cc, ".pdf"), width = 6, height = 4, 
+  ggsave(paste0("figures/select/mash_", cc, "_dom.pdf"), width = 6, height = 4, 
          units = "in", dpi = 300)
   
   # Structure of the component
@@ -82,22 +83,23 @@ for (cc in comps) {
         geom_col(colour = "black") + labs(x = "", y = "") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
         ggtitle(paste0(cc, ", Eigenvector ", j, ", (PVE = ", 
-                       round(d[j]^2/sum(d^2), 2)*100, "%)"))
-    ggsave(paste0("figures/select/mash_", cc, "_ev", j, ".pdf"), width = 8, 
-           height = 5, units = "in", dpi = 300)
+                       round(d[j]^2/sum(d^2), 2)*100, "%"))
+    ggsave(paste0("figures/select/mash_", cc, "_dom_ev", j, ".pdf"), 
+           width = 8, height = 5, units = "in", dpi = 300)
   }
 }
 
 
 # Number of significant phenotypes ----------------------------------------
-n_sig <- get_n_significant_conditions(m2)
+thresh <- 0.001
+n_sig <- get_n_significant_conditions(m2, thresh = thresh)
 tibble(N_sig = n_sig) %>%
   filter(N_sig > 0) %>%
   ggplot(., aes(x = N_sig)) + theme_classic() +
     geom_histogram(binwidth = 1, colour = "black", fill = "aquamarine", 
                    alpha = 0.8) +
     labs(x = "Number of significant phenotypes", y = "Count")
-ggsave("figures/select/sig_pheno.pdf", width = 6, height = 4, units = "in", dpi = 300)
+ggsave("figures/select/sig_pheno_dom.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 
 # Overall sharing ---------------------------------------------------------
@@ -108,28 +110,28 @@ het.norm <- function(effectsize) {
   }))
 }
 
-m_data <- read_rds("data/gemma/mash_data.rds")
+m_data <- read_rds("data/gemma/dominance/mash_data.rds")
 m_data[-3] <- lapply(m_data[-3], function(m) m[rownames(m2$result$lfsr), ])
 pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 
 # Sharing by sign
-sig_mat <- m2$result$lfsr <= 0.05
+sig_mat <- m2$result$lfsr <= thresh
 nsig <- rowSums(sig_mat)
-sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 41.6%
+sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 30.9%
 
 # Sharing by magnitude
-mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 14.9%
+mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 14.3%
 
 
 # Pairwise sharing by sign ------------------------------------------------
-pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.05) > 0, ]
-lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.05) > 0, ]
+pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < thresh) > 0, ]
+lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < thresh) > 0, ]
 shared_fold_size <- matrix(NA, nrow = ncol(lfsr_mash), ncol = ncol(lfsr_mash))
 colnames(shared_fold_size) <- rownames(shared_fold_size) <- colnames(m2$result$lfsr)
 for (i in 1:ncol(lfsr_mash)) {
   for (j in 1:ncol(lfsr_mash)) {
-    sig_row <- which(lfsr_mash[, i] < 0.05)
-    sig_col <- which(lfsr_mash[, j] < 0.05)
+    sig_row <- which(lfsr_mash[, i] < thresh)
+    sig_col <- which(lfsr_mash[, j] < thresh)
     a <- union(sig_row, sig_col)
     quotient <- pm_mash_beta_mag[a, i]/pm_mash_beta_mag[a, j]
     shared_fold_size[i, j] <- mean(quotient > 0)
@@ -150,19 +152,19 @@ as_tibble(shared_fold_size, rownames = "Phenotype1") %>%
                          limits = c(0, 1), direction = 1) +
     scale_x_discrete(position = "top") +
     theme(axis.text.x = element_text(angle = 45, hjust = -0.0625))
-ggsave("figures/select/mash_pairwise_sign.pdf", width = 10, height = 8, 
+ggsave("figures/select/mash_pairwise_sign_dom.pdf", width = 10, height = 8, 
        units = "in", dpi = 300)
 
 
 # Pairwise sharing by magnitude -------------------------------------------
-pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.05) > 0, ]
-lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.05) > 0, ]
+pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < thresh) > 0, ]
+lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < thresh) > 0, ]
 shared_fold_size <- matrix(NA, nrow = ncol(lfsr_mash), ncol = ncol(lfsr_mash))
 colnames(shared_fold_size) <- rownames(shared_fold_size) <- colnames(m2$result$lfsr)
 for (i in 1:ncol(lfsr_mash)) {
   for (j in 1:ncol(lfsr_mash)) {
-    sig_row <- which(lfsr_mash[, i] < 0.05)
-    sig_col <- which(lfsr_mash[, j] < 0.05)
+    sig_row <- which(lfsr_mash[, i] < thresh)
+    sig_col <- which(lfsr_mash[, j] < thresh)
     a <- union(sig_row, sig_col)
     quotient <- pm_mash_beta_mag[a, i]/pm_mash_beta_mag[a, j]
     shared_fold_size[i, j] <- mean(quotient > 0.5 & quotient < 2)
@@ -183,13 +185,13 @@ as_tibble(shared_fold_size, rownames = "Phenotype1") %>%
                          limits = c(0, 1), direction = 1) +
     scale_x_discrete(position = "top") +
     theme(axis.text.x = element_text(angle = 45, hjust = -0.0625))
-ggsave("figures/select/mash_pairwise_mag.pdf", width = 10, height = 8, 
+ggsave("figures/select/mash_pairwise_mag_dom.pdf", width = 10, height = 8, 
        units = "in", dpi = 300)
 
 
 # Phenotype-specific QTLs -------------------------------------------------
 pm_mash_beta_norm <- het.norm(pm_mash_beta)
-pm_mash_beta_norm <- pm_mash_beta_norm[nsig > 0, ]
+pm_mash_beta_norm <- pm_mash_beta[nsig > 0, ]
 lfsr_mash <- m2$result$lfsr[nsig > 0, ]
 a <- which(rowSums(pm_mash_beta_norm > 0.5) == 1)
 lfsr_fold <- as.matrix(lfsr_mash[a, ])
@@ -198,14 +200,6 @@ tspec <- NULL
 for (i in 1:ncol(pm)) tspec[i] <- sum(pm[, i] > 0.5)
 tspec <- as.matrix(tspec)
 rownames(tspec) <- colnames(pm_mash_beta)
-
-as_tibble(tspec, rownames = "Phenotype") %>%
-  ggplot(., aes(x = Phenotype, y = V1)) + theme_classic() +
-    geom_col(colour = "black", fill = "steelblue", alpha = 0.8) +
-    labs(x = "", y = "# Phenotype-Specific QTLs") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("figures/select/mash_specific_qtl.pdf", width = 10, height = 6, 
-       units = "in", dpi = 300)
 
 
 # Sharing summary ---------------------------------------------------------
@@ -219,7 +213,7 @@ sign.func <- function(normeffectsize) {
 }
 
 tibble(SNP = rownames(pm_mash_beta[nsig > 0, ]), 
-       Magnitude = het.func(het.norm(pm_mash_beta[nsig > 0, ]), threshold = 0.5), 
+       Magnitude = het.func(het.norm(pm_mash_beta[nsig > 0, ]), threshold = thresh), 
        Sign = sign.func(het.norm(pm_mash_beta[nsig > 0, ]))) %>%
   gather(Sharing, Count, Magnitude:Sign) %>%
   ggplot(., aes(x = Count, fill = Sharing)) + theme_classic() +
@@ -227,12 +221,11 @@ tibble(SNP = rownames(pm_mash_beta[nsig > 0, ]),
     labs(x = "# Phenotypes", y = "# SNPs") +
     facet_wrap(~ Sharing) + guides(fill = "none") +
     scale_fill_manual(values = c("Magnitude" = "goldenrod", "Sign" = "limegreen"))
-ggsave("figures/select/mash_pheno_sharing.pdf", width = 8, height = 5, 
+ggsave("figures/select/mash_pheno_sharing_dom.pdf", width = 8, height = 5, 
        units = "in", dpi = 300)
 
 
 # Manhattan plot ----------------------------------------------------------
-# hlfsr <- apply(m2$result$lfsr, 1, function(x) length(x)/sum(1/x))
 hlfsr <- apply(m2$result$lfsr, 1, min)
 anno <- read_csv("data/gemma/snp_info.txt", col_names = FALSE) %>%
   rename(rs = X1, chr = X3, ps = X2) %>%
@@ -240,7 +233,7 @@ anno <- read_csv("data/gemma/snp_info.txt", col_names = FALSE) %>%
   mutate(pval = if_else(is.na(pval), 0.99999, pval))
 
 source("src/manhattan_gemma.R")
-p <- manhattan_gemma(anno, cutoff = -log10(0.05), ylab = expression(-log[10](min(lfsr))))
+p <- manhattan_gemma(anno, cutoff = -log10(thresh), ylab = expression(-log[10](min(lfsr))))
 p
-ggsave("figures/select/mash_manhattan.pdf", width = 10, height = 5, 
+ggsave("figures/select/mash_manhattan_dom.pdf", width = 10, height = 5, 
        units = "in", dpi = 300)

@@ -24,3 +24,7 @@ yield_site_final.rds
 single_trait_predictions.rds
 single_trait_predictions_rkhs.rds
 st_single_trait_predictions.rds
+env_coef.csv
+st_AD_bglr.rds
+st_A_bglr.rds
+st_single_trait_predictions_AD.rds

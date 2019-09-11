@@ -38,12 +38,29 @@ info %>%
          Lower = PVE - SE, 
          Lower = if_else(Lower < 0, 0, Lower), 
          Shape = if_else(near(0, PVE, tol = 1e-4), "2", "1")) %>%
+  arrange(PVE) %>%
+  mutate(Site = factor(Site, levels = Site, ordered = TRUE)) %>%
   ggplot(., aes(x = Site, y = PVE)) + theme_bw() +
-    geom_pointrange(aes(ymin = Lower, ymax = Upper, shape = Shape), size = 1) +
+    geom_pointrange(aes(ymin = Lower, ymax = Upper, shape = Shape), size = 0.75) +
     labs(x = "", y = "Percent Variance Explained") + guides(shape = "none") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     scale_y_continuous(labels = scales::percent, limits = c(0, 1))
 ggsave("figures/single/gwas_plots/common_pve.pdf", width = 10, height = 6, units = "in", dpi = 300)
+
+info %>%
+  mutate(Upper = PVE + SE,
+         Upper = if_else(Upper > 1, 1, Upper), 
+         Lower = PVE - SE, 
+         Lower = if_else(Lower < 0, 0, Lower), 
+         Shape = if_else(near(0, PVE, tol = 1e-4), "2", "1")) %>%
+  arrange(PVE) %>%
+  mutate(Site = factor(Site, levels = Site, ordered = TRUE)) %>%
+  ggplot(., aes(x = Site, y = PVE)) + theme_bw() +
+    geom_pointrange(aes(ymin = Lower, ymax = Upper, shape = Shape), size = 0.75) +
+    labs(x = "", y = "Percent Variance Explained") + guides(shape = "none") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 1))
+ggsave("figures/single/gwas_plots/common_pve_sorted.pdf", width = 10, height = 6, units = "in", dpi = 300)
 
 
 # Relationships between sample size and PVE -------------------------------

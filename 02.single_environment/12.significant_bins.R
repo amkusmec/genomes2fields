@@ -1,30 +1,9 @@
 library(tidyverse)
-library(mgcv)
 library(QGenTools)
 library(purrrlyr)
 library(GenomicRanges)
 
-est_distance <- function(ld, threshold = 0.3, k = 30) {
-  require(mgcv)
-  
-  init_gam <- gam(R2 ~ s(Bin, k = k, bs = "cr"), data = ld)
-  sm <- smoothCon(s(Bin, k = k, bs = "cr"), ld, knots = NULL)[[1]]
-  mc <- mono.con(sm$xp, up = FALSE)
-  M <- list(X = sm$X, y = ld$R2, C = matrix(0, 0, 0), Ain = mc$A, 
-            bin = mc$b, sp = init_gam$sp, p = -sm$xp, S = sm$S, 
-            w = ld$R2*0 + 1, off = 0)
-  p <- pcls(M)
-  if (all(is.nan(p))) {
-    min(ld$Bin)
-  } else {
-    x <- seq(min(ld$Bin), max(ld$Bin), 1e3)
-    y <- abs(drop(Predict.matrix(sm, data.frame(Bin = x)) %*% p) - threshold)
-    x[which.min(y)]
-  }
-}
-
-
-m2 <- read_rds("data/gemma/norm_snp_mash.rds")
+m2 <- read_rds("data/single_site_gwas/common_snp_mash.rds")
 sig <- which(rowSums(apply(m2$result$lfsr, 2, function(x) x <= 0.05)) > 0)
 sig <- tibble(SNP = rownames(m2$result$lfsr[sig, ])) %>%
   mutate(Chromosome = str_remove(SNP, "X") %>%
@@ -42,7 +21,7 @@ window <- 500
 for (s in 1:nrow(sig)) {
   cat(s, "/", nrow(sig), "\r")
   
-  # Find the location of the SNP in the genome
+  # Find the location of the SNP in teh genome
   chr <- which(snps$GM$Chromosome == sig$Chromosome[s])
   idx <- which(snps$GM$SNP == sig$SNP[s])
   idx1 <- if_else(idx - window < min(chr), min(chr), as.integer(idx - window))
@@ -56,17 +35,17 @@ for (s in 1:nrow(sig)) {
            Locus2 = str_remove(Locus2, "X[0-9]{1,2}_") %>% as.integer, 
            Bin = abs(Locus1 - Locus2)) %>%
     arrange(Bin)
-  sig$Up[s] <- est_distance(r2_up, threshold = 0.05)
+  sig$Up[s] <- est_distance(r2_up, threshold = 0.05, k = 30)
   
   # LD decay downstream of the SNP
   r2_down <- r2vs(snps$GD[, idx:idx2], AB, struct) %>%
     mutate_at(c("Locus1", "Locus2"), as.character) %>%
     filter(Locus1 == sig$SNP[s] | Locus2 == sig$SNP[s]) %>%
-    mutate(Locus1 = str_remove(Locus1, "X[0-9]{1,2}_") %>% as.integer,
+    mutate(Locus1 = str_remove(Locus1, "X[0-9]{1,2}_") %>% as.integer, 
            Locus2 = str_remove(Locus2, "X[0-9]{1,2}_") %>% as.integer, 
            Bin = abs(Locus1 - Locus2)) %>%
     arrange(Bin)
-  sig$Down[s] <- est_distance(r2_down, threshold = 0.05)
+  sig$Down[s] <- est_distance(r2_down, threshold = 0.05, k = 30)
 }
 
 sig <- sig %>%
@@ -75,7 +54,6 @@ sig <- sig %>%
     colnames(m2$result$lfsr)[s]
   }, .to = "Phenotype")
 sig$N_pheno <- sapply(sig$Phenotype, length)
-
 
 sranges <- with(sig, GRanges(seqnames = Chromosome, 
                              ranges = IRanges(start = Position - Up, end = Position + Down), 
@@ -94,8 +72,8 @@ geneRanges <- with(gff, GRanges(seqname = chr,
                                 ranges = IRanges(start = start, end = end), 
                                 ids = gene))
 
-# 26/28 (92.9%) ranges contain genes
-# 1,306 genes
+# 355/374 (94.9%) ranges contain genes
+# 16,523 genes
 genes <- findOverlaps(geneRanges, reduced, ignore.strand = TRUE)
 idx1 <- genes@from; idx2 <- genes@to
 
@@ -111,10 +89,9 @@ for (i in 1:nrow(gene_table)) {
     paste(., collapse = ", ")
   gene_table$Phenotypes[i] <- sig$Phenotype[s] %>% unlist() %>%
     unique() %>% sort() %>% paste(., collapse = ", ")
-  
 }
 
 gene_table <- gene_table %>%
   select(-revmap) %>%
   dplyr::rename(Chromosome = seqnames, Start = start, End = end)
-write_rds(gene_table, "data/gemma/candidate_genes.rds")
+write_rds(gene_table, "data/single_site_gwas/candidate_genes.rds")

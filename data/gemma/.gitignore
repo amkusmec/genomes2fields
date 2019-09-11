@@ -17,3 +17,5 @@ gemma_norm_lambda.out
 gemma_norm_sigma2.out
 norm_snp_mash.rds
 rxn_norm.txt
+candidate_genes.rds
+dominance

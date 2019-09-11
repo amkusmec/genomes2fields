@@ -17,7 +17,7 @@ taxa <- union(rownames(gbs$GD), rownames(gbs$GD17))
 yield <- read_rds("data/phenotype/yield_agron0.rds")
 early <- yield %>%
   group_by(Site) %>%
-  summarise(PTTA = min(PTTA)) %>%
+  summarise(CHUA = min(CHUA)) %>%
   ungroup()
 
 weather <- read_rds("data/weather/env_variables.rds") %>%
@@ -25,7 +25,7 @@ weather <- read_rds("data/weather/env_variables.rds") %>%
          Date = paste(Year, Month, Day, sep = "-") %>% ymd())
 
 min_window <- inner_join(weather, early, by = "Site") %>%
-  mutate(Percent = PTT/PTTA) %>%
+  mutate(Percent = CHU/CHUA) %>%
   filter(Percent > 0) %>%
   group_by(Site) %>%
   summarise(Percent = max(Percent)) %>%
@@ -46,15 +46,15 @@ yield <- yield %>%
     a <- weather %>%
       filter(Environment == r$Environment, Date >= r$Planted, 
              Date <= r$Harvested) %>%
-      summarise(A = sum(PTT, na.rm = TRUE)) %>%
+      summarise(A = sum(CHU, na.rm = TRUE)) %>%
       unlist()
     
-    tibble(PTTH = a)
+    tibble(CHUH = a)
   }, .collate = "rows") %>%
   select(-.row)
 
 max_window <- yield %>%
-  mutate(Percent = PTTH/PTTA) %>%
+  mutate(Percent = CHUH/CHUA) %>%
   group_by(Site) %>%
   summarise(Percent = min(Percent)) %>%
   ungroup() %>%
@@ -62,6 +62,6 @@ max_window <- yield %>%
   slice(1L) %>%
   pull(Percent)
 
-### Time will be scaled to 0-140% of PTT to anthesis broken up into windows
-### of width 2.5%. This produces 150/2.5 = 56 windows. All possible windows from
-### size 0-140% in 2.5% steps is 60*59/2 = 1540 windows per variable.
+### Time will be scaled to 0-150% of PTT to anthesis broken up into windows
+### of width 2.5%. This produces 150/2.5 = 60 windows. All possible windows from
+### size 0-150% in 2.5% steps is 60*59/2 = 1830 windows per variable.

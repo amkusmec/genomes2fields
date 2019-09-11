@@ -97,38 +97,13 @@ meta <- read_xlsx("data/gbs/AmesUSInbreds_AllZeaGBSv1.0_SampleNameKey.xlsx") %>%
 idxt <- which(taxa %in% meta$GBS)
 taxa[idxt] <- meta$DNA
 
-# Keep SNP information
-GM <- gbs[, 1:9] %>%
-  rename(Chromosome = `#CHROM`, Position = POS, SNP = ID) %>%
-  mutate(Alleles = paste(REF, ALT, sep = ","), 
-         SNP = make.names(SNP)) %>%
-  select(SNP, Chromosome, Position, Alleles)
+# Keep SNPs used in the hybrid panel
+snps <- read_rds("data/gbs/add_snps.rds")
+GM <- snps$GM
 
-# Swap dimensions so that samples are rows and SNPs are columns
-gbs <- t(gbs[, -c(1:9)])
-colnames(gbs) <- GM$SNP
-rownames(gbs) <- taxa
-
-# Convert to numeric genotypes
-gbs <- apply(gbs, 2, function(x) {
-  if_else(x == "0|0", 0, 
-          if_else(x == "0|1" | x == "1|0", 1, 2))
-})
-rownames(gbs) <- taxa
-
-
-# Keep only SNPs that are segregating in both panels ----------------------
-idx <- which(str_detect(rownames(gbs), "Z[0-9]{3}E[0-9]{4}"))
-
-seg_nam <- apply(gbs[idx, ], 2, function(x) length(unique(x)))
-seg_nam <- names(seg_nam)[seg_nam > 1]
-
-seg_g2f <- apply(gbs[-idx, ], 2, function(x) length(unique(x)))
-seg_g2f <- names(seg_g2f)[seg_g2f > 1]
-
-seg <- intersect(seg_nam, seg_g2f)
-gbs <- gbs[, colnames(gbs) %in% seg]
-GM <- filter(GM, SNP %in% seg)
+gbs <- gbs %>%
+  mutate(ID = paste0("X", ID)) %>%
+  filter(ID %in% GM$SNP)
 
 
 # Create synthetic hybrid genotypes ---------------------------------------
@@ -139,110 +114,40 @@ hybrids <- yield %>%
   mutate(FemaleRow = match(Female, taxa), 
          MaleRow = match(Male, taxa))
 
+gbs1 <- gbs[, -c(1:9)] %>%
+  apply(., 2, str_remove, pattern = "\\|[012]")
+gbs2 <- gbs[, -c(1:9)] %>%
+  apply(., 2, str_remove, pattern = "[012]\\|")
+gbs_list <- list(gbs1, gbs2)
+
 cl <- makeCluster(10)
-clusterExport(cl, list("gbs"))
+clusterExport(cl, list("gbs_list"))
 
 hyb <- clusterMap(cl, function(x, y) {
-  apply(gbs[c(x, y), ], 2, mean, na.rm = FALSE)
+  g <- sample(2, 2, replace = TRUE)
+  paste(gbs_list[[g[1]]][, x], gbs_list[[g[2]]][, y], sep = "|")
 }, x = hybrids$FemaleRow, y = hybrids$MaleRow, 
-  RECYCLE = FALSE, .scheduling = "static")
+RECYCLE = FALSE, .scheduling = "static")
 hyb <- t(matrix(unlist(hyb, use.names = FALSE), ncol = length(hyb)))
 dimnames(hyb) <- list(hybrids$PedigreeNew, GM$SNP)
 
 stopCluster(cl)
-rm(cl, gbs)
+rm(cl, gbs, gbs_list, gbs1, gbs2)
 gc()
 
-write_rds(hyb, "data/gbs/synthetic_hybrids.rds")
+hyb <- hyb[rownames(hyb) %in% rownames(snps$GD), ]
+
+write_rds(hyb, "data/gbs/synthetic_hybrids_phased.rds")
 
 
-# Split hybrid genotypes --------------------------------------------------
-hyb1416 <- yield %>% 
-  filter(Year <= 2016) %>%
-  pull(PedigreeNew) %>%
-  unique()
-hyb17 <- yield %>%
-  filter(Year == 2017) %>%
-  pull(PedigreeNew) %>%
-  unique() %>%
-  setdiff(., hyb1416)
-
-# Hybrids only grown in 2017
-idx17 <- which(rownames(hyb) %in% hyb17)
-geno17 <- hyb[idx17, ]
-
-# Hybrids grown in 2014-2016
-hyb <- hyb[-idx17, ]
-
-
-# Identify hybrids for GxE analysis ---------------------------------------
-ped_counts <- yield %>%
-  filter(Year <= 2016, PedigreeNew %in% rownames(hyb)) %>%
-  distinct(Site, PedigreeNew) %>%
-  count(PedigreeNew)
-
-count(ped_counts, n) %>%
-  arrange(desc(n)) %>%
-  mutate(nn = cumsum(nn)) %>%
-  ggplot(., aes(x = n, y = nn)) + theme_bw() +
-    geom_point(size = 3) + 
-    labs(x = "Number of Location-Years", y = "Number of Hybrids")
-ggsave("figures/munge/hybrid_count.pdf", width = 6, height = 4, units = "in", dpi = 300)
-
-yield <- yield %>%
-  select(-Male, -Female) %>%
-  mutate(Only17 = PedigreeNew %in% hyb17, 
-         Geno = PedigreeNew %in% c(rownames(hyb), rownames(geno17)), 
-         Obs = PedigreeNew %in% (filter(ped_counts, n >= 6) %>% pull(PedigreeNew)))
-
-gbs_hyb <- filter(yield, Obs) %>% pull(PedigreeNew) %>% unique()
-hyb <- hyb[rownames(hyb) %in% gbs_hyb, ]
-
-
-# Apply QC filters --------------------------------------------------------
-# Remove monomorphic SNPs
-n_alleles <- apply(hyb, 2, function(x) length(unique(x)))
-sum(n_alleles <= 1) # 6
-hyb <- hyb[, n_alleles > 1]
-geno17 <- geno17[, n_alleles > 1]
-GM <- GM[n_alleles > 1, ]
-
-# Remove SNPs with MAF < 0.025
-maf <- apply(hyb, 2, function(x) sum(x)/(2*length(x)))
-sum(maf < 0.025 | maf > 1 - 0.025) # 102,848
-hyb <- hyb[, maf >= 0.025 & maf <= 1 - 0.025]
-geno17 <- geno17[, maf >= 0.025 & maf <= 1 - 0.025]
-GM <- GM[maf >= 0.025 & maf <= 1 - 0.025, ]
-
-# Recode the minor allele based on synthetic hybrid genotypes
-maf <- maf[names(maf) %in% GM$SNP]
-for (i in seq_along(maf)) {
-  if (maf[i] > 0.5) {
-    idx0 <- which(hyb[, i] == 0)
-    idx0.5 <- which(hyb[, i] == 0.5)
-    idx1.5 <- which(hyb[, i] == 1.5)
-    idx2 <- which(hyb[, i] == 2)
-    
-    hyb[idx0, i] <- 2
-    hyb[idx0.5, i] <- 1.5
-    hyb[idx1.5, i] <- 0.5
-    hyb[idx2, i] <- 0
-    
-    maf[i] <- 1 - maf[i]
-    GM$Alleles[i] <- str_split(GM$Alleles[i], ",") %>%
-      unlist(use.names = FALSE) %>%
-      rev() %>% paste(., collapse = ",")
-  }
+# Reformat haplotypes for simulation --------------------------------------
+haplotypes <- list()
+for (i in 1:10) {
+  haplotypes[[i]] <- hyb[, which(map$Chr == i)] %>%
+    apply(., 2, function(x) {
+      temp <- str_split(x, "\\|") %>% unlist(use.names = FALSE) %>% as.numeric()
+      if_else(temp > 1, 1, temp) %>% 
+        matrix(., ncol = 1, nrow = length(x)*2)
+    })
 }
-
-# Augment GM
-GM$maf <- maf
-ggplot(GM, aes(x = maf)) + theme_classic() +
-  geom_histogram(binwidth = 0.01, fill = "orange", alpha = 0.8, colour = "black") +
-  labs(x = "Minor Allele Frequency", y = "Count")
-ggsave("figures/munge/maf.pdf", width = 6, height = 4, units = "in", dpi = 300)
-
-
-# Save the final tables ---------------------------------------------------
-write_rds(list(GD = hyb, GD17 = geno17, GM = GM), "data/gbs/add_snps.rds")
-write_rds(yield, "data/phenotype/yield_augment.rds")
+write_rds(haplotypes, "data/gbs/synthetic_hybrids_haplotypes.rds")

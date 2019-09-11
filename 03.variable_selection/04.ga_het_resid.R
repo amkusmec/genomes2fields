@@ -166,7 +166,7 @@ seeds <- c(615151, 317119, 379563, 885645, 222345, 373540, 812586, 730468,
            72912, 820377, 744595, 298550, 221873, 660686, 301155, 711609, 746138,
            422521, 643464, 460942, 257990, 843141, 519712, 254114, 443789, 273042,
            136967, 747637, 139247, 857166, 10271, 120128, 963215, 605301, 93668, 
-           692502, 84266, 513859 ,764728)
+           692502, 84266, 513859, 764728)
 cl <- makeCluster(length(seeds)/2)
 clusterExport(cl, list("y", "X", "wts", "ga"))
 g <- parLapply(cl, seeds, function(s) {
@@ -221,6 +221,7 @@ ranges <- frequent %>%
   summarise(Start = min(Start), 
             End = max(End)) %>%
   ungroup() %>%
-  select(-indx)
+  select(-indx) %>%
+  distinct(Category, Start, End, .keep_all = TRUE)
 
 write_csv(ranges, "data/weather/ga_windows.csv")

@@ -57,7 +57,7 @@ ggsave("figures/single/mash_mix0.pdf", width = 8, height = 5, units = "in", dpi 
 
 # Explore major mixture components ----------------------------------------
 # Components that contribute > 0% and are not single-site components
-comps <- c("ED_1", "SFA_3", "SFA_4", "ED_3", "SFA_2")
+comps <- c("ED_1", "ED_2", "SFA_4")
 
 for (cc in comps) {
   # Reformat the covariance matrix
@@ -145,10 +145,10 @@ pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 # Sharing by sign
 sig_mat <- m2$result$lfsr <= 0.05
 nsig <- rowSums(sig_mat)
-sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 78.5%
+sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 77.8%
 
 # Sharing by magnitude
-mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 3.0%
+mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 2.7%
 
 ### A follow-up to this would be to reassess sharing within subsets of the
 ### environments a la the brain/non-brain distinction in Urbut et al.

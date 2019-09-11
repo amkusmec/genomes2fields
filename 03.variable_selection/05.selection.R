@@ -1,6 +1,6 @@
 library(tidyverse)
 library(parallel)
-library(lme4)
+# library(lme4)
 
 
 # Prepare the data --------------------------------------------------------
@@ -51,13 +51,14 @@ clusterExport(cl, list("y", "X", "wts"))
 bic <- parApply(cl, models, 2, function(v) {
   v <- v[!is.na(v)]
   temp <- X[, c(1:30, which(colnames(X) %in% v))]
-  BIC(lm(y ~ 0 + temp, weights = wts)) + 2*1*log(choose(24, length(v)))
+  BIC(lm(y ~ 0 + temp, weights = wts)) + 2*1*log(choose(ncol(X) - 30, length(v)))
 })
 stopCluster(cl)
 
 # Add the model without environmental variables
 # N.B.: The ith column of `models` corresponds to the (i+1)th element of `bic`.
-bic <- c(BIC(lm(y ~ 0 + X[, 1:30], weights = wts)) + 2*1*log(choose(24, 0)), bic)
+bic <- c(BIC(lm(y ~ 0 + X[, 1:30], weights = wts)) + 
+           2*1*log(choose(ncol(X) - 30, 0)), bic)
 
 selected <- models[, which.min(bic) - 1]
 

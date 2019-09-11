@@ -443,3 +443,8 @@ g2f_hyb_bin.fam
 g2f_hyb_bin.log
 ld_decay.rds
 ld_unc_decay.rds
+g2f_hybrids_dom_pca.rds
+sim_map.csv
+sim_map.rds
+synthetic_hybrids_haplotypes.rds
+synthetic_hybrids_phased.rds

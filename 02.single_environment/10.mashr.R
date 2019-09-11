@@ -47,8 +47,8 @@ write_rds(list(beta_hat = B, s_hat = S, df = df), "data/single_site_gwas/mash_da
 # Identify the strongest effects and a random subset of effects to approximate
 # the null distribution
 m_1by1 <- mash_1by1(mash_set_data(B, S, df = df))
-strong_subset <- get_significant_results(m_1by1, thresh = 0.05)
-random_subset <- sample(1:nrow(B), 40000)
+strong_subset <- get_significant_results(m_1by1, thresh = 0.1)
+random_subset <- sample(1:nrow(B), 50000)
 
 # Estimate the null correlation structure
 data_temp <- mash_set_data(B[random_subset, ], S[random_subset, ], 
