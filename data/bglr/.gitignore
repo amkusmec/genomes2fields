@@ -141,3 +141,9 @@ rxn_chain4_ETA_TMIN_X0.05_X1.5_varB.dat
 rxn_chain4_ETA_TMIN_X0.15_X0.65_b.bin
 rxn_chain4_ETA_TMIN_X0.15_X0.65_varB.dat
 trash
+effect_estimates
+rr_tmax1
+rr_tmax2
+rr_tmax3
+rr_tmax4
+rr_tmax5

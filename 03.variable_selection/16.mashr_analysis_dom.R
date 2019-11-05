@@ -117,7 +117,7 @@ pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 # Sharing by sign
 sig_mat <- m2$result$lfsr <= thresh
 nsig <- rowSums(sig_mat)
-sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 30.9%
+sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 45.8%
 
 # Sharing by magnitude
 mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 14.3%

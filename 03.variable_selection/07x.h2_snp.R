@@ -1,7 +1,7 @@
 library(tidyverse)
 library(BGLR)
 
-rxn <- read_rds("data/phenotype/rxn_norm_parameters.rds") %>%
+rxn <- read_rds("data/phenotype/rn_rxn_norm_parameters.rds") %>%
   spread(Variable, Value)
 
 snps <- read_rds("data/gbs/add_snps.rds")
@@ -37,6 +37,9 @@ for (p in 2:8) {
 
 
 # Collect the estimates ---------------------------------------------------
+phenotypes <- c("Hybrid", "Residual variance", "Drought (early)", 
+                "Drought (anthesis)", "Max. temp. (anthesis)", 
+                "Min. temp. (season)", "Min. temp. (early)")
 est <- map_df(2:8, function(p) {
   varE_A <- scan(paste0("data/bglr/h2/eigA_", names(rxn)[p], "_varE.dat"))[-c(1:400)]
   varU_A <- scan(paste0("data/bglr/h2/eigA_", names(rxn)[p], "_ETA_A_varU.dat"))[-c(1:400)]
@@ -45,13 +48,15 @@ est <- map_df(2:8, function(p) {
   varUA_D <- scan(paste0("data/bglr/h2/eigD_", names(rxn)[p], "_ETA_A_varU.dat"))[-c(1:400)]
   varUD_D <- scan(paste0("data/bglr/h2/eigD_", names(rxn)[p], "_ETA_D_varU.dat"))[-c(1:400)]
   
-  tibble(Phenotype = names(rxn)[p], 
+  tibble(Phenotype = phenotypes[p - 1], 
          Model = rep(c("A", "A+D"), each = length(varE_A)), 
          h2 = c(varU_A/(varU_A + varE_A), 
                 (varUA_D + varUD_D)/(varUA_D + varUD_D + varE_D)))
 })
 
-p <- est %>% mutate(Model = factor(Model)) %>%
+p <- est %>% 
+  mutate(Model = factor(Model), 
+         Phenotype = factor(Phenotype, levels = unique(Phenotype), ordered = TRUE)) %>%
   ggplot(., aes(x = Phenotype, y = h2)) + theme_bw() +
     geom_boxplot(aes(fill = Model), outlier.shape = 1, outlier.colour = "red", 
                  position = position_dodge(0.9), alpha = 0.7, notch = TRUE) +

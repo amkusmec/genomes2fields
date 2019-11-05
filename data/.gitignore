@@ -5,3 +5,11 @@ variable_inclusion_gbs_agron0.xlsx
 structure
 lars
 single_site_gwas
+SAM_dissTOM.rds
+decay_regions.csv
+go_permute.rds
+goslim_plant.json
+goslim_plant.obo
+highConfidentPPIs.txt
+nam_recomb_bins.xlsx
+ppi_clustering.rds

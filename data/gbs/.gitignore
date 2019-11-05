@@ -448,3 +448,4 @@ sim_map.csv
 sim_map.rds
 synthetic_hybrids_haplotypes.rds
 synthetic_hybrids_phased.rds
+add_map.csv

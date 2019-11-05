@@ -31,3 +31,5 @@ fused_bic.rds
 fused_windows.rds
 ga_het_resid.rds
 ga_windows.csv
+ga_het_resid2.rds
+ga_windows2.csv

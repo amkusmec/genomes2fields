@@ -1,5 +1,6 @@
 library(tidyverse)
 library(sommer)
+library(parallel)
 
 source("src/yield_var_comp.R")
 
@@ -23,17 +24,22 @@ yield <- filter(yield, Replicate != 0 | is.na(Replicate))
 # Model selection for variance decomposition ------------------------------
 # The main difference is the forced inclusion of `PedigreeNew` as a random--
 # instead of fixed--effect.
-vcomp <- 1:nrow(variables) %>%
-  map_df(function(i) {
+cl <- makeCluster(32)
+clusterEvalQ(cl, { library(tidyverse); library(sommer) })
+clusterExport(cl, list("variables", "yield", "var_decomp"))
+
+vcomp <- parLapply(cl, 1:nrow(variables), function(i) {
     r <- variables[i, ]
     temp <- filter(yield, Environment == r$Environment[1], Year == r$Year[1]) %>%
       mutate(Replicate = as.character(Replicate), 
              Block = paste(Replicate, Block, sep = "_"), 
              Rowf = as.character(Row), 
              Colf = as.character(Column))
-    cat(temp$Site[1], "\n")
     var_decomp(temp, r)
   })
+vcomp <- bind_rows(vcomp)
+write_rds(vcomp, "data/phenotype/variance_components.rds")
+stopCluster(cl)
 
 
 # Rename effects ----------------------------------------------------------
@@ -44,8 +50,8 @@ vcomp <- vcomp %>%
            str_replace(., "Rowf", "Row") %>%
            str_replace(., "units", "Residual"), 
          Component = factor(Component, ordered = TRUE, 
-                            levels = c("Genotype", "Block", "Row", "Column", 
-                                       "Smooth Spatial", "Residual")), 
+                            levels = rev(c("Genotype", "Block", "Row", "Column", 
+                                       "Smooth Spatial", "Residual"))), 
          Site = paste(Environment, Year, sep = "_"))
 
 
@@ -68,3 +74,17 @@ vcomp %>%
     scale_fill_brewer(type = "qual", palette = "Set2") +
     scale_y_continuous(labels = scales::percent)
 ggsave("figures/single/var_scaled.pdf", width = 11, height = 6, units = "in", dpi = 300)
+
+
+vcomp %>%
+  filter(str_detect(Site, "NEH")) %>%
+  group_by(Site) %>%
+  mutate(Variance = Variance/sum(Variance)) %>%
+  ungroup() %>%
+  ggplot(., aes(x = Site, y = Variance)) + theme_classic() +
+    geom_col(aes(fill = Component), colour = "black") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+    scale_fill_brewer(type = "qual", palette = "Set2") +
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "", y = expression(sigma[P]^2))
+ggsave("figures/single/NEH_var_scaled.pdf", width = 6, height = 4, units = "in", dpi = 300)

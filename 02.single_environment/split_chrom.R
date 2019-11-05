@@ -16,7 +16,7 @@ map <- read_xlsx("data/nam_recomb_bins.xlsx", skip = 1) %>%
   split(., .$Chr)
 
 breaks <- map_df(map, function(x) {
-  cutoff <- 1:floor(quantile(x$R, probs = 0.96))
+  cutoff <- 1:floor(quantile(x$R, probs = 0.95))
   runs <- list()
   for (xx in cutoff) {
     idx <- which(x$R <= xx)
@@ -37,26 +37,19 @@ breaks <- map_df(map, function(x) {
 breaks$End[5] <- map[[5]]$Stop[352]*1e6
 breaks$End[10] <- map[[10]]$Stop[254]*1e6
 
-
-bind_rows(map) %>%
-  ggplot(., aes(x = Start, y = R)) + theme_bw() + geom_step() +
-    facet_wrap(~ Chr, scales = "free") + 
-    geom_vline(aes(xintercept = Start), mutate(breaks, Start = Start/1e6), 
-               linetype = 2, colour = "red") +
-    geom_vline(aes(xintercept = End), mutate(breaks, End = End/1e6), 
-               linetype = 2, colour = "red") +
-    labs(x = "Physical Position (Mb)", y = "cM/Mb")
-ggsave("figures/chrom_split.pdf", width = 8, height = 6, units = "in", dpi = 300)
-
-m2 <- read_rds("data/gemma/norm_snp_mash.rds")
+m2 <- read_rds("data/single_site_gwas/common_snp_mash.rds")
 sig <- which(rowSums(apply(m2$result$lfsr, 2, function(x) x <= 0.05)) > 0)
 sig <- tibble(SNP = rownames(m2$result$lfsr[sig, ])) %>%
   mutate(Chromosome = str_remove(SNP, "X") %>%
            str_remove(., "_[0-9]*") %>% as.integer(), 
-         Position = str_remove(SNP, "X[0-9]{1,2}_") %>% as.integer()) %>%
+         Position = str_remove(SNP, "X[0-9]{1,2}_") %>%
+           as.integer()) %>%
   arrange(Chromosome, Position)
 
 snps <- read_rds("data/gbs/add_snps.rds")
+common <- read_lines("data/single_site_gwas/common_snps.txt")
+snps$GD <- snps$GD[, common]
+snps$GM <- snps$GM[snps$GM$SNP %in% common, ]
 AB <- sommer::A.mat(snps$GD - 1)
 struct <- read_rds("data/gbs/pca_covariates.rds")
 
@@ -66,14 +59,16 @@ step_size <- 50
 
 cl <- makeCluster(10)
 clusterEvalQ(cl, { library(tidyverse); library(QGenTools); library(mgcv) })
-clusterExport(cl, list("snps", "AB", "struct", "bin_size", "window_size", 
-                       "step_size", "breaks"))
+clusterExport(cl, list("bin_size", "window_size", "step_size", "breaks", "snps", 
+                       "AB", "struct"))
+
 
 ld <- parLapply(cl, 1:10, function(r) {
   ld_temp <- tibble(Chr = r, 
                     Start = c(1, breaks$Start[r], breaks$End[r]), 
                     End = c(breaks$Start[r], breaks$End[r], 
                             max(snps$GM$Position[snps$GM$Chromosome == r]) + 1), 
+                    Region = c("5'", "Pericentromere", "3'"), 
                     Decay = 0)
   
   for (i in 1:nrow(ld_temp)) {
@@ -110,19 +105,18 @@ ld <- parLapply(cl, 1:10, function(r) {
   return(ld_temp)
 })
 
-ld <- bind_rows(ld) %>%
-  mutate(Region = rep(c("5'", "Pericentromere", "3'"), times = 10))
+ld <- bind_rows(ld)
 stopCluster(cl)
-write_csv(ld, "data/decay_regions.csv")
 
 ld %>%
   mutate(Chr = factor(Chr), 
          Region = factor(Region, levels = c("5'", "Pericentromere", "3'"), ordered = TRUE)) %>%
-ggplot(., aes(x = Chr, y = Decay, group = Region, fill = Region)) + 
-  geom_col(position = "dodge", colour = "black") + theme_bw() + scale_y_log10() +
-  labs(x = "Chromosome", y = expression(paste(log[10], "(Decay Distance)"))) +
-  scale_fill_brewer(type = "qual", palette = "Accent")
-ggsave("figures/select/ld_decay.pdf", width = 6, height = 4, units = "in", dpi = 300)
+  ggplot(., aes(x = Chr, y = Decay, group = Region, fill = Region)) +
+    geom_col(position = "dodge", colour = "black") + theme_bw() + scale_y_log10() +
+    labs(x = "Chromosome", y = expression(paste(log[10], "(Decay Distance)"))) +
+    scale_fill_brewer(type = "qual", palette = "Accent")
+ggsave("figures/single/ld_decay.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
 
 sig <- by_row(sig, function(r) {
   i <- which(r$Chromosome[1] == ld$Chr &
@@ -136,8 +130,8 @@ sig <- by_row(sig, function(r) {
   by_row(function(r) {
     s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.05)
     colnames(m2$result$lfsr)[s]
-  }, .to = "Phenotype") %>%
-  mutate(N_pheno = sapply(Phenotype, length))
+  }, .to = "Site") %>%
+  mutate(N_site = sapply(Site, length))
 
 
 sranges <- with(sig, GRanges(seqnames = Chromosome, 
@@ -153,17 +147,17 @@ gff <- read_delim("~/anno/ZmB73_5b_FGS.gff", comment = "#", delim = "\t",
          X9 = str_remove(X9, "ID=")) %>%
   arrange(X1, X4) %>%
   dplyr::rename(chr = X1, start = X4, end = X5, gene = X9)
-geneRanges <- with(gff, GRanges(seqname = chr, 
+geneRanges <- with(gff, GRanges(seqnames = chr, 
                                 ranges = IRanges(start = start, end = end), 
                                 ids = gene))
 
 genes <- findOverlaps(geneRanges, reduced, ignore.strand = TRUE)
-idx1 <- genes@from; length(unique(idx1)) # 2,684 genes
-idx2 <- genes@to; length(unique(idx2))   # 19/19 (100%) ranges contain genes
+idx1 <- genes@from; length(unique(idx1)) # 14,202 genes
+idx2 <- genes@to; length(unique(idx2)) # 320/320 (100%) ranges contain genes
 
 gene_table <- as.data.frame(reduced) %>% as_tibble() %>%
   mutate(seqnames = as.character(seqnames) %>% as.integer(), 
-         SNPs = NA, Genes = NA, Phenotypes = NA) %>%
+         SNPs = NA, Genes = NA, Sites = NA) %>%
   select(-width, -strand)
 
 for (i in 1:nrow(gene_table)) {
@@ -171,14 +165,14 @@ for (i in 1:nrow(gene_table)) {
   gene_table$SNPs[i] <- paste(sig$SNP[s], collapse = ", ")
   gene_table$Genes[i] <- geneRanges$ids[idx1[which(idx2 == i)]] %>%
     paste(., collapse = ", ")
-  gene_table$Phenotypes[i] <- sig$Phenotype[s] %>% unlist() %>%
+  gene_table$Sites[i] <- sig$Site[s] %>% unlist() %>%
     unique() %>% sort() %>% paste(., collapse = ", ")
 }
 
 gene_table <- gene_table %>%
   select(-revmap) %>%
   dplyr::rename(Chromosome = seqnames, Start = start, End = end)
-write_rds(gene_table, "data/gemma/candidate_genes.rds")
+write_rds(gene_table, "data/single_site_gwas/candidate_genes.rds")
 
 
 snp_ranges <- with(sig, GRanges(seqnames = Chromosome, 
@@ -187,8 +181,8 @@ snp_ranges <- with(sig, GRanges(seqnames = Chromosome,
 dist_to_nearest <- distanceToNearest(snp_ranges, geneRanges, ignore.strand = TRUE)
 sig$Gene[dist_to_nearest@from] <- geneRanges$ids[dist_to_nearest@to]
 sig$Distance <- dist_to_nearest@elementMetadata@listData$distance
-sum(sig$Distance == 0) # 22/46 (48%) of SNPs are in a gene
-length(unique(sig$Gene)) # 32 unique genes
-max(sig$Distance) # Farthest gene is ~21kb from a SNP
+# 1,220/3,377 (~36%) of SNPs are in a gene
+# 1,418 unique genes
+# Farthest gene is ~165kb from a SNP; average is 5.6kb
 
-write_rds(sig, "data/gemma/nearest_genes.rds")
+write_rds(sig, "data/single_site_gwas/nearest_genes.rds")

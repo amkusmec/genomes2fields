@@ -10,7 +10,7 @@ gc()
 
 pca <- read_rds("data/gbs/pca_covariates.rds")
 
-rxn <- read_rds("data/phenotype/rxn_norm_parameters.rds") %>%
+rxn <- read_rds("data/phenotype/rn_rxn_norm_parameters.rds") %>%
   filter(PedigreeNew %in% taxa) %>%
   spread(Variable, Value)
 

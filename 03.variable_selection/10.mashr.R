@@ -39,6 +39,7 @@ Vhat <- estimate_null_correlation_simple(data_temp)
 rm(data_temp); gc()
 
 # Set up data structures
+data_all <- mash_set_data(B, S, df = df, V = Vhat)
 data_random <- mash_set_data(B[random_subset, ], S[random_subset, ], df = df, V = Vhat)
 data_strong <- mash_set_data(B[strong_subset, ], S[strong_subset, ], df = df, V = Vhat)
 
@@ -84,9 +85,15 @@ U_c <- cov_canonical(data_random)
 
 # Final mash analysis -----------------------------------------------------
 m <- mash(data_random, Ulist = c(U_ed, U_sfa, U_c), outputlevel = 1)
+write_rds(m, "data/gemma/mash_weights.rds")
 
-# Compute posterior summaries
+# Compute posterior summaries for the strongest signals
 m2 <- mash(data_strong, g = get_fitted_g(m), fixg = TRUE)
 snp_names <- gwas[[1]]$rs[strong_subset]
 for (i in 1:5) rownames(m2$result[[i]]) <- snp_names
 write_rds(m2, "data/gemma/norm_snp_mash.rds")
+
+# Compute posterior sumaries for all SNPs
+m3 <- mash(data_all, g = get_fitted_g(m), fixg = TRUE)
+for (i in 1:5) rownames(m3$result[[i]]) <- gwas[[1]]$rs
+write_rds(m3, "data/gemma/norm_snp_mash_all.rds")

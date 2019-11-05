@@ -19,3 +19,10 @@ norm_snp_mash.rds
 rxn_norm.txt
 candidate_genes.rds
 dominance
+coexpress_enrich.rds
+enrich_permute.rds
+go_terms.csv
+mash_weights.rds
+nearest_genes.rds
+norm_snp_mash_all.rds
+ppi_enrich.rds

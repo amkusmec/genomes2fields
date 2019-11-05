@@ -28,3 +28,11 @@ env_coef.csv
 st_AD_bglr.rds
 st_A_bglr.rds
 st_single_trait_predictions_AD.rds
+bootstrap_intervals.rds
+bootstrap_samples.rds
+genetic_corr.rds
+reversed_net_joint_rxn_norm_model.rds
+rn_rxn_norm_parameters.rds
+variance_components.rds
+yield_blue_final2.rds
+yield_site_final2.rds

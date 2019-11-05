@@ -8,6 +8,8 @@ data <- read_rds("data/phenotype/yield_blue_env.rds") %>%
   filter(!str_detect(Site, "2017$")) %>%
   separate(Site, c("Environment", "Year"), sep = "_", remove = FALSE) %>%
   select(BLUE, PedigreeNew, Site, Environment, Year, everything())
+net <- names(data)[which(str_detect(names(data), "NET"))]
+data <- mutate_at(data, net, function(x) -1*x)
 ped_site <- data %>%
   select(Site, PedigreeNew) %>%
   split(., .$Site)
@@ -17,7 +19,7 @@ y <- data$BLUE
 y <- y - mean(y)
 
 # Predictors
-ga <- read_csv("data/weather/ga_windows.csv")
+ga <- read_csv("data/weather/ga_windows2.csv")
 vars <- paste(ga$Category, make.names(ga$Start), make.names(ga$End), sep = "_") %>%
   unique()
 X <- cbind(model.matrix(~ 0 + Environment + Year, data = data), 
@@ -67,14 +69,14 @@ selected <- models[, which.min(bic) - 1]
 data <- data[, c("Site", "Environment", "Year", "PedigreeNew", "BLUE", selected)]
 
 # Save for future use
-write_rds(data, "data/phenotype/yield_blue_final.rds")
+write_rds(data, "data/phenotype/yield_blue_final2.rds")
 
 # A site-wise table for post hoc analysis of single-site results
 data %>%
   group_by(Site) %>%
   summarise_at(c("BLUE", selected), median) %>%
   ungroup() %>%
-  write_rds(., "data/phenotype/yield_site_final.rds")
+  write_rds(., "data/phenotype/yield_site_final2.rds")
 
 
 # # Compute the joint reaction norms ----------------------------------------

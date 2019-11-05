@@ -45,21 +45,25 @@ ggsave("figures/select/mash_mix0.pdf", width = 8, height = 5, units = "in", dpi 
 
 # Explore mixture components ----------------------------------------------
 # Components that contribute >0% and are not single-phenotype components
-comps <- c("ED_1", "ED_3", "SFA_3", "SFA_2")
+comps <- c("ED_1", "ED_3", "SFA_2", "SFA_4")
 
 for (cc in comps) {
   # Reformat the covariance matrix
   x <- cov2cor(m2$fitted_g$Ulist[[cc]])
-  rownames(x) <- colnames(x) <- colnames(m2$result$lfsr)
-  x <- x[order(rownames(x)), order(colnames(x))]
+  # rownames(x) <- colnames(x) <- colnames(m2$result$lfsr)
+  rownames(x) <- colnames(x) <- 
+    c("Hybrid", "Residual variance", "Drought (early)", 
+      "Drought (anthesis)", "Max. temp (anthesis)", 
+      "Min. temp. (season)", "Min. temp. (early)")
+  # x <- x[order(rownames(x)), order(colnames(x))]
   x[upper.tri(x, diag = FALSE)] <- NA
   
   # Correlation plot
   as_tibble(x, rownames = "Phenotype1") %>%
     gather(Phenotype2, R, -Phenotype1) %>%
     filter(!is.na(R)) %>%
-    mutate(Phenotype1 = factor(Phenotype1, levels = sort(unique(Phenotype1)), ordered = TRUE), 
-           Phenotype2 = factor(Phenotype2, levels = rev(sort(unique(Phenotype2))), ordered = TRUE)) %>%
+    mutate(Phenotype1 = factor(Phenotype1, levels = unique(Phenotype1), ordered = TRUE), 
+           Phenotype2 = factor(Phenotype2, levels = rev(unique(Phenotype2)), ordered = TRUE)) %>%
     ggplot(., aes(x = Phenotype1, y = Phenotype2, fill = R)) + theme_classic() +
       geom_tile() + labs(x = "", y = "", fill = "") +
       scale_fill_distiller(type = "div", palette = "RdBu", limits = c(-1, 1)) +
@@ -96,7 +100,7 @@ tibble(N_sig = n_sig) %>%
   ggplot(., aes(x = N_sig)) + theme_classic() +
     geom_histogram(binwidth = 1, colour = "black", fill = "aquamarine", 
                    alpha = 0.8) +
-    labs(x = "Number of significant phenotypes", y = "Count")
+    labs(x = "# significant phenotypes", y = "# SNPs")
 ggsave("figures/select/sig_pheno.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 
@@ -115,10 +119,10 @@ pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 # Sharing by sign
 sig_mat <- m2$result$lfsr <= 0.05
 nsig <- rowSums(sig_mat)
-sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 41.6%
+sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 48.1%
 
 # Sharing by magnitude
-mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 14.9%
+mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 14.3%
 
 
 # Pairwise sharing by sign ------------------------------------------------

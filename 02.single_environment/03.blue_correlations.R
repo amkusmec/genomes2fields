@@ -59,6 +59,20 @@ ggsave("figures/single/tau_correlation.pdf", width = 12, height = 12,
        units = "in", dpi = 300)
 
 
+cor_mat_upper_sub <- cor_mat_upper %>%
+  filter(str_detect(Site1, "NEH"), str_detect(Site2, "NEH"))
+cor_mat_lower_sub <- cor_mat_lower %>%
+  filter(str_detect(Site1, "NEH"), str_detect(Site2, "NEH"))
+ggplot() + theme_classic() + 
+  geom_tile(aes(x = Site2, y = Site1, fill = Tau), cor_mat_lower_sub) +
+  geom_text(aes(x = Site2, y = Site1, label = N_hyb), cor_mat_upper_sub, size = 5) +
+  # scale_fill_distiller(type = "div", palette = "RdBu", direction = 1) +
+  scale_fill_distiller(type = "seq", palette = "Greens", direction = 1) + 
+  labs(x = "", y = "", fill = expression(tau[b])) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45))
+ggsave("figures/single/NEH_tau.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+
 # Across-environment correlation (Pearson) --------------------------------
 cor_mat2 <- matrix(0, nrow = n_sites, ncol = n_sites)
 diag(cor_mat2) <- NA

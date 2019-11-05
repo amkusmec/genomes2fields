@@ -7,6 +7,8 @@ data <- read_rds("data/phenotype/yield_blue_env.rds") %>%
   filter(!str_detect(Site, "2017$")) %>%
   separate(Site, c("Environment", "Year"), sep = "_", remove = FALSE) %>%
   select(BLUE, PedigreeNew, Site, Environment, Year, everything())
+net <- names(data)[which(str_detect(names(data), "NET"))]
+data <- mutate_at(data, net, function(x) -1*x)
 ped_site <- data %>%
   select(Site, PedigreeNew) %>%
   split(., .$Site)
@@ -174,7 +176,7 @@ g <- parLapply(cl, seeds, function(s) {
   ga(y, X, wts, popsize = 200, n = 5, maxiter = 1000, run = 200, pcrossover = 0.8, 
      pmutation = 0.2, gamma = 1, verbose = FALSE)
 })
-write_rds(g, "data/weather/ga_het_resid.rds")
+write_rds(g, "data/weather/ga_het_resid2.rds")
 stopCluster(cl)
 
 
@@ -224,4 +226,4 @@ ranges <- frequent %>%
   select(-indx) %>%
   distinct(Category, Start, End, .keep_all = TRUE)
 
-write_csv(ranges, "data/weather/ga_windows.csv")
+write_csv(ranges, "data/weather/ga_windows2.csv")
