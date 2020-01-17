@@ -1,8 +1,8 @@
 library(tidyverse)
 library(BGLR)
 
-rxn <- read_rds("data/phenotype/rn_rxn_norm_parameters.rds") %>%
-  spread(Variable, Value)
+rxn <- read_rds("data/phenotype/glmm_rxn_norm_parameters.rds") %>%
+  spread(Parameter, Value)
 
 snps <- read_rds("data/gbs/add_snps.rds")
 K <- sommer::A.mat(snps$GD - 1)
@@ -19,15 +19,16 @@ EVD <- eigen(D)
 
 
 # Run the models ----------------------------------------------------------
-for (p in 2:8) {
+for (p in 2:6) {
+  # cat(p, "\n")
   fm_A <- BGLR(y = rxn[[p]], 
-               ETA = list(fixed = list(~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9, 
+               ETA = list(fixed = list(~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8, 
                                        data = rxn, model = "FIXED"), 
                           A = list(V = EVA$vectors, d = EVA$values, model = "RKHS")), 
                nIter = 12000, burnIn = 2000, 
                saveAt = paste0("data/bglr/h2/eigA_", names(rxn)[p], "_"))
   fm_D <- BGLR(y = rxn[[p]], 
-               ETA = list(fixed = list(~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9, 
+               ETA = list(fixed = list(~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8, 
                                        data = rxn, model = "FIXED"), 
                           A = list(V = EVA$vectors, d = EVA$values, model = "RKHS"), 
                           D = list(V = EVD$vectors, d = EVD$values, model = "RKHS")), 
@@ -37,10 +38,10 @@ for (p in 2:8) {
 
 
 # Collect the estimates ---------------------------------------------------
-phenotypes <- c("Hybrid", "Residual variance", "Drought (early)", 
-                "Drought (anthesis)", "Max. temp. (anthesis)", 
-                "Min. temp. (season)", "Min. temp. (early)")
-est <- map_df(2:8, function(p) {
+# phenotypes <- c("Hybrid", "Residual variance", "Drought (early)", 
+#                 "Drought (anthesis)", "Max. temp. (anthesis)", 
+#                 "Min. temp. (season)", "Min. temp. (early)")
+est <- map_df(2:6, function(p) {
   varE_A <- scan(paste0("data/bglr/h2/eigA_", names(rxn)[p], "_varE.dat"))[-c(1:400)]
   varU_A <- scan(paste0("data/bglr/h2/eigA_", names(rxn)[p], "_ETA_A_varU.dat"))[-c(1:400)]
   
@@ -48,7 +49,7 @@ est <- map_df(2:8, function(p) {
   varUA_D <- scan(paste0("data/bglr/h2/eigD_", names(rxn)[p], "_ETA_A_varU.dat"))[-c(1:400)]
   varUD_D <- scan(paste0("data/bglr/h2/eigD_", names(rxn)[p], "_ETA_D_varU.dat"))[-c(1:400)]
   
-  tibble(Phenotype = phenotypes[p - 1], 
+  tibble(Phenotype = names(rxn)[p], 
          Model = rep(c("A", "A+D"), each = length(varE_A)), 
          h2 = c(varU_A/(varU_A + varE_A), 
                 (varUA_D + varUD_D)/(varUA_D + varUD_D + varE_D)))

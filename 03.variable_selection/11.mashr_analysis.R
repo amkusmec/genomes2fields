@@ -29,7 +29,7 @@ ggsave("figures/select/mash_mix.pdf", width = 10, height = 5, units = "in", dpi 
 
 # Summarize mixture components that account for >0% of the components
 colSums(pi_mat) %>% enframe(name = "Matrix") %>%
-  filter(value > 0) %>%
+  filter(value > .Machine$double.eps) %>%
   bind_rows(., tibble(Matrix = "Null", value = m2$fitted_g$pi[1])) %>%
   arrange(desc(value)) %>%
   mutate(Matrix = factor(Matrix, levels = Matrix, ordered = TRUE)) %>%
@@ -45,17 +45,17 @@ ggsave("figures/select/mash_mix0.pdf", width = 8, height = 5, units = "in", dpi 
 
 # Explore mixture components ----------------------------------------------
 # Components that contribute >0% and are not single-phenotype components
-comps <- c("ED_1", "ED_3", "SFA_2", "SFA_4")
+comps <- c("ED_1", "ED_2")
 
 for (cc in comps) {
   # Reformat the covariance matrix
   x <- cov2cor(m2$fitted_g$Ulist[[cc]])
-  # rownames(x) <- colnames(x) <- colnames(m2$result$lfsr)
-  rownames(x) <- colnames(x) <- 
-    c("Hybrid", "Residual variance", "Drought (early)", 
-      "Drought (anthesis)", "Max. temp (anthesis)", 
-      "Min. temp. (season)", "Min. temp. (early)")
-  # x <- x[order(rownames(x)), order(colnames(x))]
+  rownames(x) <- colnames(x) <- colnames(m2$result$lfsr)
+  # rownames(x) <- colnames(x) <- 
+  #   c("Hybrid", "Residual variance", "Drought (early)", 
+  #     "Drought (anthesis)", "Max. temp (anthesis)", 
+  #     "Min. temp. (season)", "Min. temp. (early)")
+  x <- x[order(rownames(x)), order(colnames(x))]
   x[upper.tri(x, diag = FALSE)] <- NA
   
   # Correlation plot
@@ -117,23 +117,23 @@ m_data[-3] <- lapply(m_data[-3], function(m) m[rownames(m2$result$lfsr), ])
 pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 
 # Sharing by sign
-sig_mat <- m2$result$lfsr <= 0.05
+sig_mat <- m2$result$lfsr <= 0.1
 nsig <- rowSums(sig_mat)
-sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 48.1%
+sign_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0) # 60.6%
 
 # Sharing by magnitude
-mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 14.3%
+mag_all <- mean(het.norm(pm_mash_beta[nsig > 0, ]) > 0.5) # 20.0%
 
 
 # Pairwise sharing by sign ------------------------------------------------
-pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.05) > 0, ]
-lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.05) > 0, ]
+pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.1) > 0, ]
+lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.1) > 0, ]
 shared_fold_size <- matrix(NA, nrow = ncol(lfsr_mash), ncol = ncol(lfsr_mash))
 colnames(shared_fold_size) <- rownames(shared_fold_size) <- colnames(m2$result$lfsr)
 for (i in 1:ncol(lfsr_mash)) {
   for (j in 1:ncol(lfsr_mash)) {
-    sig_row <- which(lfsr_mash[, i] < 0.05)
-    sig_col <- which(lfsr_mash[, j] < 0.05)
+    sig_row <- which(lfsr_mash[, i] < 0.1)
+    sig_col <- which(lfsr_mash[, j] < 0.1)
     a <- union(sig_row, sig_col)
     quotient <- pm_mash_beta_mag[a, i]/pm_mash_beta_mag[a, j]
     shared_fold_size[i, j] <- mean(quotient > 0)
@@ -159,14 +159,14 @@ ggsave("figures/select/mash_pairwise_sign.pdf", width = 10, height = 8,
 
 
 # Pairwise sharing by magnitude -------------------------------------------
-pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.05) > 0, ]
-lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.05) > 0, ]
+pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.1) > 0, ]
+lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.1) > 0, ]
 shared_fold_size <- matrix(NA, nrow = ncol(lfsr_mash), ncol = ncol(lfsr_mash))
 colnames(shared_fold_size) <- rownames(shared_fold_size) <- colnames(m2$result$lfsr)
 for (i in 1:ncol(lfsr_mash)) {
   for (j in 1:ncol(lfsr_mash)) {
-    sig_row <- which(lfsr_mash[, i] < 0.05)
-    sig_col <- which(lfsr_mash[, j] < 0.05)
+    sig_row <- which(lfsr_mash[, i] < 0.1)
+    sig_col <- which(lfsr_mash[, j] < 0.1)
     a <- union(sig_row, sig_col)
     quotient <- pm_mash_beta_mag[a, i]/pm_mash_beta_mag[a, j]
     shared_fold_size[i, j] <- mean(quotient > 0.5 & quotient < 2)
@@ -235,16 +235,16 @@ ggsave("figures/select/mash_pheno_sharing.pdf", width = 8, height = 5,
        units = "in", dpi = 300)
 
 
-# Manhattan plot ----------------------------------------------------------
-# hlfsr <- apply(m2$result$lfsr, 1, function(x) length(x)/sum(1/x))
-hlfsr <- apply(m2$result$lfsr, 1, min)
-anno <- read_csv("data/gemma/snp_info.txt", col_names = FALSE) %>%
-  rename(rs = X1, chr = X3, ps = X2) %>%
-  full_join(., tibble(rs = names(hlfsr), pval = hlfsr), by = "rs") %>%
-  mutate(pval = if_else(is.na(pval), 0.99999, pval))
-
-source("src/manhattan_gemma.R")
-p <- manhattan_gemma(anno, cutoff = -log10(0.05), ylab = expression(-log[10](min(lfsr))))
-p
-ggsave("figures/select/mash_manhattan.pdf", width = 10, height = 5, 
-       units = "in", dpi = 300)
+# # Manhattan plot ----------------------------------------------------------
+# # hlfsr <- apply(m2$result$lfsr, 1, function(x) length(x)/sum(1/x))
+# hlfsr <- apply(m2$result$lfsr, 1, min)
+# anno <- read_csv("data/gemma/snp_info.txt", col_names = FALSE) %>%
+#   rename(rs = X1, chr = X3, ps = X2) %>%
+#   full_join(., tibble(rs = names(hlfsr), pval = hlfsr), by = "rs") %>%
+#   mutate(pval = if_else(is.na(pval), 0.99999, pval))
+# 
+# source("src/manhattan_gemma.R")
+# p <- manhattan_gemma(anno, cutoff = -log10(0.05), ylab = expression(-log[10](min(lfsr))))
+# p
+# ggsave("figures/select/mash_manhattan.pdf", width = 10, height = 5, 
+#        units = "in", dpi = 300)

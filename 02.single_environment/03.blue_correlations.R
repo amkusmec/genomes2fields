@@ -18,6 +18,7 @@ sites <- unique(sites) %>% sort()
 n_sites <- length(sites)
 cor_mat <- matrix(0, nrow = n_sites, ncol = n_sites)
 diag(cor_mat) <- NA
+sig_mat <- cor_mat
 
 for (i in 1:(n_sites - 1)) {
   for (j in (i + 1):n_sites) {
@@ -30,10 +31,13 @@ for (i in 1:(n_sites - 1)) {
     
     # Below-diagonal = Kendall's tau b
     cor_mat[j, i] <- cor(temp[[2]], temp[[3]], method = "kendall")
+    
+    # Significance test
+    sig_mat[j, i] <- cor.test(temp[[2]], temp[[3]], method = "kendall")$p.value
   }
 }
 
-dimnames(cor_mat) <- list(sites, sites)
+dimnames(cor_mat) <- dimnames(sig_mat) <- list(sites, sites)
 
 
 # Plot the correlation matrix ---------------------------------------------
@@ -49,9 +53,16 @@ cor_mat_upper <- cor_mat_upper %>%
   as_tibble(rownames = "Site1") %>%
   gather(Site2, N_hyb, -Site1, na.rm = TRUE)
 
+sig_mat[upper.tri(sig_mat, diag = FALSE)] <- NA
+sig_mat <- as_tibble(sig_mat, rownames = "Site1") %>%
+  gather(Site2, P, -Site1, na.rm = TRUE) %>%
+  mutate(Q = p.adjust(P, method = "fdr"), 
+         Sig = if_else(Q <= 0.05, "*", ""))
+
 ggplot() + theme_classic() + 
   geom_tile(aes(x = Site2, y = Site1, fill = Tau), cor_mat_lower) +
   geom_text(aes(x = Site2, y = Site1, label = N_hyb), cor_mat_upper, size = 2) +
+  geom_text(aes(x = Site2, y = Site1, label = Sig), sig_mat, size = 4) +
   scale_fill_distiller(type = "div", palette = "RdBu", direction = 1) +
   labs(x = "", y = "", fill = expression(tau[b])) +
   theme(axis.text.x = element_text(hjust = 1, angle = 45))
@@ -63,10 +74,12 @@ cor_mat_upper_sub <- cor_mat_upper %>%
   filter(str_detect(Site1, "NEH"), str_detect(Site2, "NEH"))
 cor_mat_lower_sub <- cor_mat_lower %>%
   filter(str_detect(Site1, "NEH"), str_detect(Site2, "NEH"))
+sig_mat_sub <- sig_mat %>%
+  filter(str_detect(Site1, "NEH"), str_detect(Site2, "NEH"))
 ggplot() + theme_classic() + 
   geom_tile(aes(x = Site2, y = Site1, fill = Tau), cor_mat_lower_sub) +
   geom_text(aes(x = Site2, y = Site1, label = N_hyb), cor_mat_upper_sub, size = 5) +
-  # scale_fill_distiller(type = "div", palette = "RdBu", direction = 1) +
+  geom_text(aes(x = Site2, y = Site1, label = Sig), sig_mat_sub, size = 6) + 
   scale_fill_distiller(type = "seq", palette = "Greens", direction = 1) + 
   labs(x = "", y = "", fill = expression(tau[b])) +
   theme(axis.text.x = element_text(hjust = 1, angle = 45))
@@ -127,7 +140,7 @@ for (i in 1:(ncol(cor_mat) - 1)) {
 }
 
 cor_mat[which(is.na(cor_mat))] <- 0
-clust <- hclust(as.dist(cor_mat), method = "ward.D")
+clust <- hclust(as.dist(1 - abs(cor_mat)), method = "ward.D")
 
 ## Label by year/state
 yr_labs <- clust$labels %>% str_replace(., "[A-Z]{2}H[0-9]_", "") %>%
@@ -171,3 +184,13 @@ WGCNA::plotDendroAndColors(clust2, cbind(yr_cols2, st_cols2),
                            c("Year", "State"), dendroLabels = NULL, 
                            addGuide = TRUE, main = "r")
 dev.off()
+
+
+library(dendextend)
+cor_cophenetic(clust, clust2)
+tanglegram(clust, clust2)
+
+fk <- find_k(clust, krange = 2:44)
+pam_labs <- WGCNA::labels2colors(fk$pamobject$clustering)
+WGCNA::plotDendroAndColors(clust, pam_labs, c(""), dendroLabels = NULL, 
+                           addGuide = TRUE, main = expression(tau[b]))

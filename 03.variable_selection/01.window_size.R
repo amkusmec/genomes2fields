@@ -10,9 +10,9 @@ taxa <- union(rownames(gbs$GD), rownames(gbs$GD17))
 
 
 # Identify the minimum possible window size -------------------------------
-# This is based on the percentage of PTT to anthesis contributed by each day
+# This is based on the percentage of CHU to anthesis contributed by each day
 # to the earliest flowering hybrid across all sites. Counterintuitively, 
-# the minimum window size is the maximum single-day contribution to PTT to 
+# the minimum window size is the maximum single-day contribution to CHU to 
 # anthesis because this represents the minimum resolution across all sites.
 yield <- read_rds("data/phenotype/yield_agron0.rds")
 early <- yield %>%
@@ -36,11 +36,11 @@ min_window <- inner_join(weather, early, by = "Site") %>%
 
 
 # Identify the range of developmental time --------------------------------
-# This is relative to PTT to anthesis and accumulation of heat units beyond
+# This is relative to CHU to anthesis and accumulation of heat units beyond
 # this threshold. The limit is set by the site where the fewest heat units
 # were accumulated and the latest flowering hybrid in that site.
 
-# Calculate PTT to harvest
+# Calculate CHU to harvest
 yield <- yield %>%
   by_row(function(r) {
     a <- weather %>%
@@ -62,6 +62,6 @@ max_window <- yield %>%
   slice(1L) %>%
   pull(Percent)
 
-### Time will be scaled to 0-150% of PTT to anthesis broken up into windows
+### Time will be scaled to 0-150% of CHU to anthesis broken up into windows
 ### of width 2.5%. This produces 150/2.5 = 60 windows. All possible windows from
 ### size 0-150% in 2.5% steps is 60*59/2 = 1830 windows per variable.

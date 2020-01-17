@@ -1,6 +1,6 @@
 library(tidyverse)
 library(purrrlyr)
-source("src/go_enrich.R")
+source("src/go_enrich_at.R")
 
 
 # Load data files ---------------------------------------------------------
@@ -13,27 +13,24 @@ gene_table <- read_rds("data/gemma/candidate_genes.rds") %>%
   unnest(NGenes) %>%
   mutate(Genes = str_split(Genes, ", "))
 bgenes <- unlist(gene_table$Genes, use.names = FALSE) %>% unique()
-b <- filter(gamer, v2_gene_model %in% bgenes)
+b <- filter(anno, GID %in% bgenes)
 
-# 14 unique combinations of phenotypes -- most have too few entries to be used
-# for enrichment analysis. The exception is "lnMSE, TMIN_X0.05_X1.5, TMIN_X0.15_X0.65"
-# which has 16 entries.
+sapply(cand$Phenotype, function(l) paste(l, collapse = ",")) %>% unique()
+# 9 unique combinations of phenotypes
+sapply(cand$Phenotype, function(l) paste(l, collapse = ",")) %>% table()
 
-all_genes <- go_enrich(unique(cand$Gene), b)
-all2 <- go_enrich(unique(cand$Gene), gamer)
-idx <- sapply(cand$Phenotype, function(p) {
-  "lnMSE" %in% p
-})
-ln_genes <- go_enrich(unique(cand$Gene[idx]), b)
-
-regions <- go_enrich(bgenes, gamer)
+closest_vs_ld <- go_enrich(unique(cand$Gene), b)
+closest_vs_genome <- go_enrich(unique(cand$Gene), anno)
+ld_vs_genome <- go_enrich(bgenes, anno)
 
 
-all_sig <- filter(all_genes, p_val <= 0.05) %>% pull(Name)
-ln_sig <- filter(ln_genes, p_val <= 0.05) %>% pull(Name)
-r_sig <- filter(regions, p_val <= 0.05) %>% pull(Name)
+cl_sig <- filter(closest_vs_ld, p_val <= 0.05) %>% pull(Name)
+cg_sig <- filter(closest_vs_genome, p_val <= 0.05) %>% pull(Name)
+lg_sig <- filter(ld_vs_genome, p_val <= 0.05) %>% pull(Name)
 
 
-gplots::venn(list(Regions = r_sig, Closest = all_sig, MSE = ln_sig))
+gplots::venn(list(CL = cl_sig, CG = cg_sig, LG = lg_sig))
 
-write_csv(all_genes, "data/gemma/go_terms.csv")
+write_csv(closest_vs_ld, "data/gemma/closest_vs_ld_go_terms.csv")
+write_csv(closest_vs_genome, "data/gemma/closest_vs_genome_go_terms.csv")
+write_csv(ld_vs_genome, "data/gemma/ld_vs_genome_go_terms.csv")

@@ -61,11 +61,10 @@ yield <- yield %>%
   mutate(PedigreeNew2 = paste(Male, Female, sep = "/"), 
          Test = PedigreeNew2 %in% intersect(PedigreeNew, PedigreeNew2),
          PedigreeNew = if_else(Test, 
-                               if_else(Male >= Female, paste(Male, Female, collapse = "/"), 
-                                       paste(Female, Male, collapse = "/")), 
-                               PedigreeNew), 
-         Female = str_split(PedigreeNew, "/") %>% sapply(., function(x) x[1]),
-         Male = str_split(PedigreeNew, "/") %>% sapply(., function(x) x[2])) %>%
+                               if_else(Male >= Female, paste(Male, Female, sep = "/"), 
+                                       paste(Female, Male, sep = "/")), 
+                               PedigreeNew)) %>%
+  separate(PedigreeNew, c("Male", "Female"), sep = "/", remove = FALSE) %>%
   select(-PedigreeNew2, -Test) %>%
   filter(PedigreeNew != "PHB47/PHB47")
 
@@ -185,7 +184,7 @@ count(ped_counts, n) %>%
   arrange(desc(n)) %>%
   mutate(nn = cumsum(nn)) %>%
   ggplot(., aes(x = n, y = nn)) + theme_bw() +
-    geom_point(size = 3) + 
+    geom_point(size = 3) + geom_vline(xintercept = 6, linetype = 2, colour = "red") +
     labs(x = "Number of Location-Years", y = "Number of Hybrids")
 ggsave("figures/munge/hybrid_count.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
@@ -209,7 +208,7 @@ GM <- GM[n_alleles > 1, ]
 
 # Remove SNPs with MAF < 0.025
 maf <- apply(hyb, 2, function(x) sum(x)/(2*length(x)))
-sum(maf < 0.025 | maf > 1 - 0.025) # 102,848
+sum(maf < 0.025 | maf > 1 - 0.025) # 109,415
 hyb <- hyb[, maf >= 0.025 & maf <= 1 - 0.025]
 geno17 <- geno17[, maf >= 0.025 & maf <= 1 - 0.025]
 GM <- GM[maf >= 0.025 & maf <= 1 - 0.025, ]

@@ -19,6 +19,7 @@ ppi <- graph_from_adjacency_matrix(ppi_adj, mode = "undirected", diag = FALSE)
 # pc <- cluster_edge_betweenness(ppi, weights = NULL, directed = FALSE)
 # write_rds(pc, "data/ppi_clustering.rds")
 pc <- read_rds("data/ppi_clustering.rds")
+pc <- cluster_leading_eigen(ppi)
 
 
 cand <- read_rds("data/gemma/nearest_genes.rds")
@@ -54,11 +55,12 @@ module_enrich <- cand_modules %>%
   p.adjust(method = "fdr")
 enriched_modules <- cand_modules[module_enrich <= 0.05]
 
-cand_enrich <- enriched_modules %>%
-  map(function(m) {
-    filter(modules, Module == m) %>% pull(Gene) %>% go_enrich()
-  })
-names(cand_enrich) <- make.names(enriched_modules)
+# Both enriched modules have 1 gene in them
+# cand_enrich <- enriched_modules %>%
+#   map(function(m) {
+#     filter(modules, Module == m) %>% pull(Gene) %>% go_enrich()
+#   })
+# names(cand_enrich) <- make.names(enriched_modules)
 
 ld_module_enrich <- ld_modules %>%
   map_dbl(function(m) {
@@ -71,18 +73,19 @@ ld_module_enrich <- ld_modules %>%
   p.adjust(method = "fdr")
 ld_enriched_modules <- ld_modules[ld_module_enrich <= 0.05]
 
-ld_enrich <- setdiff(ld_enriched_modules, enriched_modules) %>%
-  map(function(m) {
-    if (m == 1244) {
-      NULL
-    } else {
-      filter(modules, Module == m) %>% pull(Gene) %>% go_enrich()
-    }
-  })
-names(ld_enrich) <- make.names(ld_enriched_modules)
-ld_enrich <- ld_enrich[!sapply(ld_enrich, is.null)]
+# All modules have <= 3 genes
+# ld_enrich <- setdiff(ld_enriched_modules, enriched_modules) %>%
+#   map(function(m) {
+#     if (m == 1244) {
+#       NULL
+#     } else {
+#       filter(modules, Module == m) %>% pull(Gene) %>% go_enrich()
+#     }
+#   })
+# names(ld_enrich) <- make.names(ld_enriched_modules)
+# ld_enrich <- ld_enrich[!sapply(ld_enrich, is.null)]
 
-terms <- c(cand_enrich, ld_enrich) %>%
+terms <- cand_enrich %>%
   map(function(df) filter(df, q_val <= 0.05) %>% pull(Name))
 
 # Terms unique to modules

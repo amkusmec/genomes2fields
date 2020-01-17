@@ -15,7 +15,8 @@ info <- snps$GM %>%
 GD <- t(snps$GD) %>%
   apply(., 2, function(x) { 
     if_else(x == 0, "0|0", 
-            if_else(x == 1, "0|1", "1|1"))
+            if_else(x == 1, "0|1", 
+                    if_else(x == 2, "1|1", "./.")))
   })
 
 vcf <- bind_cols(info, as_tibble(GD))

@@ -16,27 +16,27 @@ GD <- hyb$GD
 #   }
 # }
 # write_rds(dis, "data/gbs/dissim.rds")
-dis <- read_rds("data/gbs/dissim.rds")
-
-
-# nMDS for population structure -------------------------------------------
-nmds <- map(2:15, function(d) {
-  MASS::isoMDS(dis, k = d)
-})
-stress <- sapply(nmds, function(x) x$stress)
-
-tibble(Nd = 2:15, Stress = stress) %>%
-  ggplot(., aes(x = Nd, y = Stress)) + theme_classic() +
-    geom_point(size = 3) + geom_line() +
-    labs(x = "Dimensions", y = "Stress") +
-    scale_x_continuous(breaks = 2:15)
-ggsave("figures/munge/nmds_stress.pdf", width = 6, height = 4, units = "in", dpi = 300)
-
-for (i in seq_along(nmds)) {
-  rownames(nmds[[i]]$points) <- rownames(GD)
-  colnames(nmds[[i]]$points) <- paste0("Dim", 1:ncol(nmds[[i]]$points))
-}
-write_rds(nmds, "data/gbs/nmds.rds")
+# dis <- read_rds("data/gbs/dissim.rds")
+# 
+# 
+# # nMDS for population structure -------------------------------------------
+# nmds <- map(2:15, function(d) {
+#   MASS::isoMDS(dis, k = d)
+# })
+# stress <- sapply(nmds, function(x) x$stress)
+# 
+# tibble(Nd = 2:15, Stress = stress) %>%
+#   ggplot(., aes(x = Nd, y = Stress)) + theme_classic() +
+#     geom_point(size = 3) + geom_line() +
+#     labs(x = "Dimensions", y = "Stress") +
+#     scale_x_continuous(breaks = 2:15)
+# ggsave("figures/munge/nmds_stress.pdf", width = 6, height = 4, units = "in", dpi = 300)
+# 
+# for (i in seq_along(nmds)) {
+#   rownames(nmds[[i]]$points) <- rownames(GD)
+#   colnames(nmds[[i]]$points) <- paste0("Dim", 1:ncol(nmds[[i]]$points))
+# }
+# write_rds(nmds, "data/gbs/nmds.rds")
 
 
 # PCA for population structure --------------------------------------------
@@ -65,4 +65,4 @@ as_tibble(pca$x[, 1:2]) %>%
 ggsave("figures/munge/pc1_2.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 # All PCs that explain >= 2% of the variance
-write_rds(pca$x[, 1:9], "data/gbs/pca_covariates.rds")
+write_rds(pca$x[, which(var_exp >= 0.02)], "data/gbs/pca_covariates.rds")

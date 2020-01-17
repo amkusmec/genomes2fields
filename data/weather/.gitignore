@@ -33,3 +33,6 @@ ga_het_resid.rds
 ga_windows.csv
 ga_het_resid2.rds
 ga_windows2.csv
+ga_final_model.rds
+ga_het_resid_mean.rds
+test_mcmc.rds

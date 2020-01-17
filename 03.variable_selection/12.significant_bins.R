@@ -27,8 +27,8 @@ breaks <- map_df(map, function(x) {
   }
   
   idx <- which.max(sapply(runs, length))
-  tibble(Chr = x$Chr[1], 
-         Start = x$Start[min(runs[[idx]])], 
+  tibble(Chr = x$Chr[1],
+         Start = x$Start[min(runs[[idx]])],
          End = x$Stop[max(runs[[idx]])])
 }) %>%
   mutate(Start = Start*1e6, 
@@ -37,19 +37,29 @@ breaks <- map_df(map, function(x) {
 breaks$End[5] <- map[[5]]$Stop[352]*1e6
 breaks$End[10] <- map[[10]]$Stop[254]*1e6
 
+centro <- read_tsv("~/anno/Centro.gff3", col_names = FALSE, comment = "##") %>%
+  mutate(X1 = str_remove(X1, "Chr") %>% as.integer(), 
+         X4 = X4/1e6, 
+         X5 = X5/1e6) %>%
+  dplyr::rename(Chr = X1)
+
+label_chr <- function(x) paste("Chromosome ", x)
 
 bind_rows(map) %>%
   ggplot(., aes(x = Start, y = R)) + theme_bw() + geom_step() +
-    facet_wrap(~ Chr, scales = "free") + 
+    facet_wrap(~ Chr, scales = "free", ncol = 5, 
+               labeller = labeller(Chr = label_chr)) + 
     geom_vline(aes(xintercept = Start), mutate(breaks, Start = Start/1e6), 
                linetype = 2, colour = "red") +
     geom_vline(aes(xintercept = End), mutate(breaks, End = End/1e6), 
-               linetype = 2, colour = "red") +
+               linetype = 2, colour = "red") + 
+    geom_vline(aes(xintercept = X4), centro, linetype = 2, colour = "green") + 
+    geom_vline(aes(xintercept = X5), centro, linetype = 2, colour = "green") + 
     labs(x = "Physical Position (Mb)", y = "cM/Mb")
-ggsave("figures/chrom_split.pdf", width = 8, height = 6, units = "in", dpi = 300)
+ggsave("figures/chrom_split.pdf", width = 10, height = 5, units = "in", dpi = 300)
 
 m2 <- read_rds("data/gemma/norm_snp_mash.rds")
-sig <- which(rowSums(apply(m2$result$lfsr, 2, function(x) x <= 0.05)) > 0)
+sig <- which(rowSums(apply(m2$result$lfsr, 2, function(x) x <= 0.1)) > 0)
 sig <- tibble(SNP = rownames(m2$result$lfsr[sig, ])) %>%
   mutate(Chromosome = str_remove(SNP, "X") %>%
            str_remove(., "_[0-9]*") %>% as.integer(), 
@@ -111,17 +121,19 @@ ld <- parLapply(cl, 1:10, function(r) {
 })
 
 ld <- bind_rows(ld) %>%
-  mutate(Region = rep(c("5'", "Pericentromere", "3'"), times = 10))
+  mutate(Region = rep(c("Short arm", "Pericentromere", "Long arm"), times = 10))
 stopCluster(cl)
 write_csv(ld, "data/decay_regions.csv")
 
 ld %>%
   mutate(Chr = factor(Chr), 
-         Region = factor(Region, levels = c("5'", "Pericentromere", "3'"), ordered = TRUE)) %>%
+         Decay = Decay/1e6,
+         Region = factor(Region, levels = c("Short arm", "Pericentromere", "Long arm"), ordered = TRUE)) %>%
 ggplot(., aes(x = Chr, y = Decay, group = Region, fill = Region)) + 
-  geom_col(position = "dodge", colour = "black") + theme_bw() + scale_y_log10() +
-  labs(x = "Chromosome", y = expression(paste(log[10], "(Decay Distance)"))) +
-  scale_fill_brewer(type = "qual", palette = "Accent")
+  geom_col(position = "dodge", colour = "black") + theme_bw() + #scale_y_log10() +
+  #labs(x = "Chromosome", y = expression(paste(log[10], "(Decay Distance)"))) +
+  labs(x = "Chromosome", y = "Decay Distance (Mb)", fill = "") +
+  scale_fill_brewer(type = "qual", palette = "Set2")
 ggsave("figures/select/ld_decay.pdf", width = 6, height = 4, units = "in", dpi = 300)
 
 sig <- by_row(sig, function(r) {
@@ -134,7 +146,7 @@ sig <- by_row(sig, function(r) {
   mutate(Lower = Position - Decay, 
          Upper = Position + Decay) %>%
   by_row(function(r) {
-    s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.05)
+    s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.1)
     colnames(m2$result$lfsr)[s]
   }, .to = "Phenotype") %>%
   mutate(N_pheno = sapply(Phenotype, length))
@@ -158,8 +170,8 @@ geneRanges <- with(gff, GRanges(seqname = chr,
                                 ids = gene))
 
 genes <- findOverlaps(geneRanges, reduced, ignore.strand = TRUE)
-idx1 <- genes@from; length(unique(idx1)) # 2,684 genes
-idx2 <- genes@to; length(unique(idx2))   # 19/19 (100%) ranges contain genes
+idx1 <- genes@from; length(unique(idx1)) # 3,458 genes
+idx2 <- genes@to; length(unique(idx2))   # 28/28 (100%) ranges contain genes
 
 gene_table <- as.data.frame(reduced) %>% as_tibble() %>%
   mutate(seqnames = as.character(seqnames) %>% as.integer(), 
@@ -187,8 +199,18 @@ snp_ranges <- with(sig, GRanges(seqnames = Chromosome,
 dist_to_nearest <- distanceToNearest(snp_ranges, geneRanges, ignore.strand = TRUE)
 sig$Gene[dist_to_nearest@from] <- geneRanges$ids[dist_to_nearest@to]
 sig$Distance <- dist_to_nearest@elementMetadata@listData$distance
-sum(sig$Distance == 0) # 22/46 (48%) of SNPs are in a gene
-length(unique(sig$Gene)) # 32 unique genes
-max(sig$Distance) # Farthest gene is ~21kb from a SNP
+sum(sig$Distance == 0) # 26/144 (18.1%) of SNPs are in a gene
+length(unique(sig$Gene)) # 55 unique genes
+max(sig$Distance) # Farthest gene is 309,713 bp from a SNP
 
 write_rds(sig, "data/gemma/nearest_genes.rds")
+
+sig %>%
+  by_row(function(r) {
+    paste(r$Phenotype[[1]], collapse = "; ")
+  }, .to = "P", .collate = "rows") %>%
+  dplyr::select(SNP, Chromosome, Position, Gene, Distance, N_pheno, P) %>%
+  rename(`Distance to SNP (bp)` = Distance, `# Phenotypes` = N_pheno, 
+         Phenotypes = P) %>%
+  write_csv(., "data/gemma/nearest_genes.csv")
+

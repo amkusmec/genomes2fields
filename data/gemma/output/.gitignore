@@ -392,3 +392,11 @@ norm_TMIN_X0.05_X1.5.assoc.txt
 norm_TMIN_X0.05_X1.5.log.txt
 norm_TMIN_X0.15_X0.65.assoc.txt
 norm_TMIN_X0.15_X0.65.log.txt
+norm_NET_X0.175_X1.4.assoc.txt
+norm_NET_X0.175_X1.4.log.txt
+norm_SR_X0.65_X1.425.assoc.txt
+norm_SR_X0.65_X1.425.log.txt
+norm_TMAX_X0.825_X0.95.assoc.txt
+norm_TMAX_X0.825_X0.95.log.txt
+norm_TMAX_X0.875_X1.425.assoc.txt
+norm_TMAX_X0.875_X1.425.log.txt

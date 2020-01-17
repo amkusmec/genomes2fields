@@ -4,7 +4,7 @@ source("src/go_enrich.R")
 
 # Permutation test for the enrichment of GO terms associated with the genes
 # nearest to significant SNPs versus the background of all genes within the 
-# LD-tagged regions. Draw 10k sets of random genes from the 19 regions and 
+# LD-tagged regions. Draw 10k sets of random genes from the regions and 
 # test for GO term enrichment.
 
 gene_table <- read_rds("data/gemma/candidate_genes.rds")
@@ -45,3 +45,4 @@ enrich <- map(enrich, function(d) filter(d, p_val <= 0.05) %>% pull(Name)) %>%
   mutate(p = n/1e4)
 
 go <- left_join(go, enrich, by = "Name")
+write_csv(go, "data/gemma/go_terms_permute.csv")

@@ -78,3 +78,24 @@ metadata <- bind_rows(meta_2014, meta_2015, meta_2016, meta_2017) %>%
   filter(!is.na(Latitude), !is.na(Longitude), !str_detect(Environment, "ON"))
 
 write_csv(metadata, "data/metadata/metadata_clean.csv")
+
+
+sites <- read_rds("data/phenotype/yield_agron0.rds") %>%
+  filter(!str_detect(Site, "2017$")) %>%
+  filter(Site != "NEH3_2015") %>%
+  pull(Site) %>% unique()
+trials <- metadata %>%
+  mutate(Site = paste(Environment, Year, sep = "_")) %>%
+  filter(Site %in% sites) %>%
+  mutate(Latitude = 0.5*(Latitude %/% 0.5), 
+         Longitude = 0.5*(Longitude %/% 0.5)) %>%
+  count(Latitude, Longitude) %>%
+  mutate(n = factor(n))
+states <- map_data("state")
+ggplot(states, aes(x = long, y = lat)) + theme_bw() + 
+  geom_polygon(aes(group = group), fill = "white", colour = "black") + 
+  geom_point(aes(x = Longitude, y = Latitude, size = n, fill = n), data = trials, 
+             shape = 21, colour = "black") + 
+  scale_fill_brewer(type = "seq", palette = "YlOrRd") +
+  labs(x = "", y = "", fill = "# Trials", size = "# Trials")
+ggsave("figures/trial_map.pdf", width = 7, height = 4, units = "in", dpi = 300)

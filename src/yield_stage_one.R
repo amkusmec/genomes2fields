@@ -6,9 +6,11 @@ require(sommer)
 stage_one <- function(temp, r) {
   # Construct the basic fixed formula
   if (r$Replicate[1]) {
-    base_fix <- "Yield ~ 0 + PedigreeNew + Replicate"
+    # base_fix <- "Yield ~ 0 + PedigreeNew + Replicate"
+    base_fix <- "Yield ~ 1 + PedigreeNew + Replicate"
   } else {
-    base_fix <- "Yield ~ 0 + PedigreeNew"
+    # base_fix <- "Yield ~ 0 + PedigreeNew"
+    base_fix <- "Yield ~ 1 + PedigreeNew"
   }
   
   # Construct the basic random formula
@@ -195,17 +197,29 @@ stage_one <- function(temp, r) {
   
   # Get the fixed genotype effects and variance-covariance matrices
   if (class(base_model) == "mmer") {
+    # co <- coef(base_model) %>%
+    #   as_tibble() %>%
+    #   dplyr::select(-Trait)
+    
     co <- coef(base_model) %>%
       as_tibble() %>%
-      dplyr::select(-Trait)
+      dplyr::select(-Trait) %>%
+      mutate(Effect = as.character(Effect), 
+             Estimate = c(Estimate[1], Estimate[2:n()] + Estimate[1]))
     
     vc <- base_model$VarBeta
-    idx <- which(str_detect(co$Effect, "PedigreeNew"))
+    # idx <- which(str_detect(co$Effect, "PedigreeNew"))
+    idx <- which(str_detect(co$Effect, "PedigreeNew") | co$Effect == "(Intercept)")
     vc <- vc[idx, idx]
     
-    co <- filter(co, str_detect(Effect, "PedigreeNew")) %>%
-      mutate(Effect = str_replace(Effect, "PedigreeNew", "")) %>%
+    # co <- filter(co, str_detect(Effect, "PedigreeNew")) %>%
+    #   mutate(Effect = str_replace(Effect, "PedigreeNew", "")) %>%
+    #   rename(PedigreeNew = Effect, BLUE = Estimate)
+    
+    co <- filter(co, str_detect(Effect, "PedigreeNew") | Effect == "(Intercept)") %>%
+      mutate(Effect = str_remove(Effect, "PedigreeNew")) %>%
       rename(PedigreeNew = Effect, BLUE = Estimate)
+    co$PedigreeNew[1] <- setdiff(unique(temp$PedigreeNew), co$PedigreeNew)
     
     rownames(vc) <- co$PedigreeNew
     colnames(vc) <- co$PedigreeNew
@@ -213,16 +227,19 @@ stage_one <- function(temp, r) {
     co <- coef(base_model)
     co <- tibble(PedigreeNew = names(co), 
                  BLUE = co) %>%
-      filter(str_detect(PedigreeNew, "PedigreeNew")) %>%
-      mutate(PedigreeNew = str_replace(PedigreeNew, "PedigreeNew", ""))
+      mutate(PedigreeNew = str_replace(PedigreeNew, "PedigreeNew", ""), 
+             BLUE = c(BLUE[1], BLUE[2:n()] + BLUE[1]))
     
     vc <- vcov(base_model)
-    vc <- vc[str_detect(rownames(vc), "PedigreeNew"), 
-             str_detect(colnames(vc), "PedigreeNew")]
-    rownames(vc) <- str_replace(rownames(vc), "PedigreeNew", "")
-    colnames(vc) <- str_replace(colnames(vc), "PedigreeNew", "")
+    idx <- which(str_detect(co$PedigreeNew, "/") | co$PedigreeNew == "(Intercept)")
+    
+    co <- filter(co, str_detect(PedigreeNew, "/") | PedigreeNew == "(Intercept)")
+    co$PedigreeNew[1] <- setdiff(unique(temp$PedigreeNew), co$PedigreeNew)
+    
+    vc <- vc[idx, idx]
+    rownames(vc) <- colnames(vc) <- co$PedigreeNew
   }
   
   # Return the results
-  return(list(blue = co, vcov = vc))
+  return(list(blue = co, vcov = vc, model = base_model$call))
 }

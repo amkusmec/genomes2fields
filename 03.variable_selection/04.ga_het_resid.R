@@ -5,6 +5,7 @@ library(parallel)
 # Prepare the data --------------------------------------------------------
 data <- read_rds("data/phenotype/yield_blue_env.rds") %>%
   filter(!str_detect(Site, "2017$")) %>%
+  filter(Site != "NEH3_2015") %>%
   separate(Site, c("Environment", "Year"), sep = "_", remove = FALSE) %>%
   select(BLUE, PedigreeNew, Site, Environment, Year, everything())
 net <- names(data)[which(str_detect(names(data), "NET"))]
@@ -15,35 +16,42 @@ ped_site <- data %>%
 
 # Response
 y <- data$BLUE
-y <- y - mean(y)
 
 # Predictors
-X <- cbind(model.matrix(~ 0 + Environment + Year, data = data), 
+X <- cbind(model.matrix(~ 1 + Site, data = data), 
            as.matrix(data[, -c(1:5)]))
-X[, -c(1:30)] <- scale(X[, -c(1:30)], center = TRUE, scale = FALSE)
+X[, -c(1:45)] <- scale(X[, -c(1:45)], center = TRUE, scale = TRUE)
 
 # Function to construct the direct sum of a list of matrices
-source("src/direct_sum.R")
+# source("src/direct_sum.R")
 
 # Variance-covariance matrix of the BLUEs
 d <- read_rds("data/phenotype/yield_stage_one_all_agron0.rds")
-d <- d[!str_detect(names(d), "2017$")]
+d <- d[names(d) %in% names(ped_site)]
 d <- mapply(function(x, y) {
   idx <- which(rownames(x$vcov) %in% y$PedigreeNew)
-  x$vcov[idx, idx]
+  temp <- x$vcov[idx, idx]
+  c(temp[1, 1], temp[1, 1] + diag(temp)[-1] + 2*temp[-1, 1])
 }, x = d, y = ped_site)
-R <- direct_sum(d)
-wts <- 1/diag(R)
+# R <- direct_sum(d)
+wts <- 1/unlist(d, use.names = FALSE)
+
+# # Transform the response and predictors to meet the assumption of iid residuals
+# cm <- chol(R)
+# Si <- solve(cm)
+# z <- drop(Si %*% matrix(y, ncol = 1))
+# W <- Si %*% X
 
 
 # Genetic algorithm function ----------------------------------------------
 ga <- function(resp, pred, wts, popsize, n = 5, maxiter = 50, run = 10, 
-               pcrossover = 0.8, pmutation = 0.1, gamma = 1, verbose = TRUE) {
+               pcrossover = 0.8, pmutation = 0.1, elitism = 0.05, gamma = 1, 
+               verbose = TRUE) {
   # Structures for saving information
   minima <- means <- medians <- numeric(maxiter)
   
   # Initialize a population of solutions
-  nvar <- sum(stringr::str_detect(colnames(pred), "_"))
+  nvar <- sum(stringr::str_count(colnames(pred), "_") == 2)
   offset <- ncol(pred) - nvar
   S0 <- matrix(FALSE, ncol = popsize, nrow = nvar)
   S0[, -1] <- apply(S0[, -1], 2, function(x) {
@@ -91,11 +99,12 @@ ga <- function(resp, pred, wts, popsize, n = 5, maxiter = 50, run = 10,
     }
     
     # Generate the next generation
-    S1 <- matrix(FALSE, ncol = popsize, nrow = nvar)
-    pointer <- 2
+    S0 <- S0[, order(bic, decreasing = FALSE)]
+    S1 <- matrix(FALSE, ncol = popsize*(1 - elitism), nrow = nvar)
+    pointer <- 1
     repeat {
       # Select two random parents
-      parents <- sample(popsize, 2)
+      parents <- sample(1:(popsize*elitism), 2)
       
       # Crossover
       if (runif(1) <= pcrossover) {
@@ -105,16 +114,17 @@ ga <- function(resp, pred, wts, popsize, n = 5, maxiter = 50, run = 10,
         S1[idx, pointer] <- TRUE
         pointer <- pointer + 1
       } else {
-        if (pointer + 1 > popsize) {
+        if (pointer + 1 > ncol(S1)) {
           S1[, pointer] <- S0[, parents[sample(1:2, 1)]]
+          pointer <- pointer + 1
         } else {
           S1[, pointer] <- S0[, parents[1]]
           S1[, pointer + 1] <- S0[, parents[2]]
+          pointer <- pointer + 2
         }
-        pointer <- pointer + 2
       }
       
-      if (pointer > popsize) break
+      if (pointer > ncol(S1)) break
     }
     
     # Mutation
@@ -125,10 +135,10 @@ ga <- function(resp, pred, wts, popsize, n = 5, maxiter = 50, run = 10,
       }
       
       x
-    }, x = split(t(S1[, -1]), 1:(popsize - 1)), r = runif(popsize - 1))
+    }, x = split(t(S1), 1:ncol(S1)), r = runif(ncol(S1)))
     
-    # Save this generation plus the best solution from the previous generation
-    S0 <- cbind(matrix(S0[, which.min(bic)], ncol = 1), S1)
+    # Save this generation plus the best solutions from the previous generation
+    S0 <- cbind(S0[, 1:(200*0.05)], S1)
   }
   
   # Final evaluation
@@ -173,57 +183,145 @@ cl <- makeCluster(length(seeds)/2)
 clusterExport(cl, list("y", "X", "wts", "ga"))
 g <- parLapply(cl, seeds, function(s) {
   set.seed(s)
-  ga(y, X, wts, popsize = 200, n = 5, maxiter = 1000, run = 200, pcrossover = 0.8, 
-     pmutation = 0.2, gamma = 1, verbose = FALSE)
+  ga(y, X, wts, popsize = 800, n = 5, maxiter = 1000, run = 200, pcrossover = 0.8, 
+     pmutation = 0.5, elitism = 0.05, gamma = 1, verbose = FALSE)
 })
-write_rds(g, "data/weather/ga_het_resid2.rds")
+write_rds(g, "data/weather/ga_het_resid_mean.rds")
 stopCluster(cl)
 
 
 # Reduce the number of variables ------------------------------------------
 # Get all the variables that were selected in any model
-which.min(sapply(g, function(x) min(x$minima)))
+nvars <- sapply(g, function(x) length(x$g))
 vars <- lapply(g, function(x) x$g) %>% unlist(use.names = FALSE)
-tt <- table(vars)
+minima <- sapply(g, function(x) min(x$minima))
+niters <- sapply(g, function(x) length(x$minima))
 
-# For variables that were selected by at least 2 models...
-frequent <- tibble(Variable = names(tt)[tt > 1]) %>%
-  separate(Variable, c("Category", "Start", "End"), sep = "_", remove = FALSE) %>%
+tibble(NVars = nvars, Minima = minima, NIters = niters) %>%
+  gather(Term, Value, everything()) %>%
+  ggplot(., aes(x = Value)) + theme_classic() +
+    geom_histogram() + facet_wrap(~ Term, scales = "free")
+
+tt <- table(vars)
+enframe(tt) %>% mutate(value = as.integer(value)) %>% pull(value) %>% summary()
+var_table <- tibble(Variable = names(tt)) %>%
+  separate(Variable, c("EVar", "Start", "End"), sep = "_", remove = FALSE) %>%
+  mutate(Start = str_remove(Start, "X") %>% as.numeric(),
+         End = str_remove(End, "X") %>% as.numeric()) %>%
+  group_by(EVar) %>%
+  arrange(Start, End) %>%
+  mutate(Index = 1:n()) %>%
+  ungroup()
+pB <- ggplot(var_table, aes(y = Index)) + theme_bw() +
+  geom_segment(aes(yend = Index, x = Start, xend = End)) +
+  facet_wrap(~ EVar, ncol = 2) + labs(x = "% CHU to Anthesis", y = "") +
+  scale_x_continuous(labels = scales::percent, limits = c(0, 1.5)) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+ggsave("figures/select/stage_one_variables.pdf", plot = pB, width = 5,
+       height = 8, units = "in", dpi = 300)
+
+X2 <- X[, c(1:45, which(colnames(X) %in% var_table$Variable))]
+g2 <- ga(y, X2, wts, popsize = 800, n = 3, maxiter = 1000, run = 200, pcrossover = 0.8,
+         pmutation = 0.5, elitism = 0.05, gamma = 1, verbose = TRUE)
+write_rds(g2, "data/weather/ga_final_model.rds")
+
+
+# Behavior of GA over replicates and final model
+minima <- g %>%
+  map(function(x) {
+    c(x$minima, rep(NA, max(niters) - length(x$minima)))
+  }) %>%
+  unlist() %>%
+  matrix(., nrow = max(niters), ncol = 100, byrow = FALSE)
+
+perf <- as_tibble(minima) %>%
+  gather(Replicate, Minimum, everything()) %>%
+  filter(!is.na(Minimum)) %>%
+  group_by(Replicate) %>%
+  mutate(Iteration = 1:n()) %>%
+  ungroup()
+pA <- ggplot(perf, aes(x = Iteration, y = Minimum)) + theme_classic() +
+  geom_line(aes(group = Replicate), colour = "grey80", alpha = 0.5) +
+  geom_line(aes(y = M), data = perf %>%
+              group_by(Iteration) %>%
+              summarise(M = mean(Minimum))) +
+  geom_line(data = tibble(Iteration = 1:length(g2$minima),
+                          Minimum = g2$minima),
+            colour = "red", size = 1) +
+  labs(y = "eBIC")
+
+
+# Evaluate all possible models --------------------------------------------
+models <- lapply(1:5, function(i) {
+  temp <- combn(g2$g, i)
+  if (nrow(temp) < 5) {
+    temp <- rbind(temp, matrix(NA, ncol = ncol(temp), nrow = 5 - i))
+  }
+  return(temp)
+})
+models <- do.call("cbind", models)
+
+bic <- apply(models, 2, function(v) {
+  v <- v[!is.na(v)]
+  temp <- X[, c(1:45, which(colnames(X) %in% v))]
+  BIC(lm(y ~ 0 + temp, weights = wts)) + 2*1*log(choose(ncol(X) - 45, length(v)))
+})
+
+# Add the model without environmental variables
+# N.B.: The ith column of `models` corresponds to the (i+1)th element of `bic`.
+bic <- c(BIC(lm(y ~ 0 + X[, 1:45], weights = wts)) + 
+           2*1*log(choose(ncol(X) - 45, 0)), bic)
+
+selected <- models[, which.min(bic) - 1]
+pA <- pA + geom_hline(yintercept = min(bic), linetype = 2)
+ggsave("figures/select/stage_one_GA.pdf", plot = pA, width = 5, height = 4,
+       units = "in", dpi = 300)
+
+# Plot of selected variables
+pC <- tibble(V = selected[!is.na(selected)]) %>%
+  separate(V, c("Variable", "Start", "End"), sep = "_", remove = TRUE) %>%
   mutate_at(c("Start", "End"), str_remove, pattern = "X") %>%
   mutate_at(c("Start", "End"), as.numeric) %>%
-  split(., .$Category) %>%
-  map_df(function(df) {
-    # Construct a distance matrix
-    X_sub <- X[, df$Variable]
-    X_dist <- dist(t(X_sub))
-    
-    # Perform a fast complete linkage clustering
-    X_h <- hclust(X_dist, method = "complete")
-    
-    # Seed a PAM clustering with the complete linkage results to choose an
-    # optimal number of clusters
-    X_kk <- dendextend::find_k(X_h)
-    
-    tibble(Variable = names(X_kk$pamobject$clustering), 
-           Cluster = X_kk$pamobject$clustering)
-  }) %>%
-  separate(Variable, c("Category", "Start", "End"), sep = "_", remove = FALSE) %>%
-  mutate_at(c("Start", "End"), str_remove, pattern = "X") %>%
-  mutate_at(c("Start", "End"), as.numeric)
+  mutate(Ypos = factor(Variable) %>% as.integer(),
+         Ypos = Ypos + c(0.125, -0.125, 0, 0)) %>%
+  ggplot(.) + theme_classic() +
+    geom_segment(aes(x = Start, xend = End, y = Ypos, yend = Ypos,
+                     colour = Variable), size = 2) +
+    geom_vline(xintercept = 1, linetype = 2) +
+    labs(x = "% CHU to anthesis", y = "") + guides(colour = "none") +
+    scale_colour_manual(values = c("TMAX" = "red", "SR" = "goldenrod", "NET" = "brown")) +
+    scale_y_continuous(breaks = 1:3, labels = c("NET", "SR" ,"TMAX")) +
+    scale_x_continuous(limits = c(0, 1.5), labels = scales::percent)
+ggsave("figures/select/selected_variables.pdf", plot = pC, width = 5, height = 4,
+       units = "in", dpi = 300)
 
-# Combine overlapping ranges within a cluster
-# Code from: 
-# https://stackoverflow.com/questions/53213418/r-collapse-and-merge-overlapping-time-intervals
-ranges <- frequent %>%
-  group_by(Category, Cluster) %>%
-  arrange(Start) %>%
-  mutate(indx = c(0, cumsum(as.numeric(lead(Start)) > 
-                              cummax(as.numeric(End)))[-n()])) %>%
-  group_by(Category, Cluster, indx) %>%
-  summarise(Start = min(Start), 
-            End = max(End)) %>%
-  ungroup() %>%
-  select(-indx) %>%
-  distinct(Category, Start, End, .keep_all = TRUE)
+library(grid)
+library(gridExtra)
 
-write_csv(ranges, "data/weather/ga_windows2.csv")
+lay <- matrix(c(1, 2, 3, 2), ncol = 2, byrow = TRUE)
+grob1 <- grobTree(ggplotGrob(pA),
+                  textGrob("A", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
+                           hjust = "left", vjust = "top",
+                           gp = gpar(fontface = "bold", fontsize = 14)))
+grob2 <- grobTree(ggplotGrob(pB),
+                  textGrob("B", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
+                           hjust = "left", vjust = "top",
+                           gp = gpar(fontface = "bold", fontsize = 14)))
+grob3 <- grobTree(ggplotGrob(pC),
+                  textGrob("C", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
+                           hjust = "left", vjust = "top",
+                           gp = gpar(fontface = "bold", fontsize = 14)))
+gp <- arrangeGrob(grob1, grob2, grob3, layout_matrix = lay)
+ggsave("figures/select/ga_results.pdf", gp, width = 10, height = 8,
+       units = "in", dpi = 300)
+
+write_lines(selected[!is.na(selected)], "data/phenotype/selected_variables.txt")
+
+
+# Replicate 30 is the best of the replicate models
+selected <- selected[!is.na(selected)]
+min_vars <- c(selected, g2$g, g[[30]]$g) %>% unique()
+var_count <- tibble(Variable = min_vars, 
+                    Replicate = Variable %in% g[[30]]$g, 
+                    Second = Variable %in% g2$g, 
+                    Final = Variable %in% selected)

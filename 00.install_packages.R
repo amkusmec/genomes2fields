@@ -3,7 +3,7 @@
 install.packages(c("devtools", "tidyverse", "lubridate", "lutz", "prism", 
                    "purrrlyr", "jsonlite", "readxl", "mgcv", "sommer", 
                    "evolqg", "tensorBSS", "WGCNA", "lme4", "orthopolynorm", 
-                   "rrBLUP", "Rcpp", "RcppEigen"))
+                   "rrBLUP", "Rcpp", "RcppEigen", "abind"))
 
 ### Ubuntu 14.04 requires the installation of an old version of `rgdal`
 devtools::install_version("rgdal", version = "1.2-20", 
@@ -14,6 +14,8 @@ install.packages("elevatr")
 ### may be able to use the normal installation procedure for Bioconductor
 source("https://bioconductor.org/biocLite.R")
 biocLite("qvalue")
+biocLite("AnnotationForge")
+biocLite("GOSemSim")
 install.packages("isva")
 
 devtools::install_github("stephenslab/susieR@0.8.0")

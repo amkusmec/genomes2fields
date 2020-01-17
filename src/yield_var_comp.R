@@ -85,6 +85,7 @@ var_decomp <- function(temp, r) {
         }
       }))
       idx <- which.min(bic)
+      # idx <- max(which(bic == min(bic)))
       
       if (idx == 1) break
       
@@ -142,9 +143,10 @@ var_decomp <- function(temp, r) {
                        rcov = ~ vs(units), data = temp, verbose = FALSE)
   }
   
-  # Get the unscaled variance components and return the results
-  tibble(Year = r$Year[1], 
-         Environment = r$Environment[1], 
-         Component = names(base_model$sigma) %>% str_replace(., "u:", ""), 
-         Variance = unlist(base_model$sigma, use.names = FALSE))
+  # # Get the unscaled variance components and return the results
+  # tibble(Year = r$Year[1], 
+  #        Environment = r$Environment[1], 
+  #        Component = names(base_model$sigma) %>% str_replace(., "u:", ""), 
+  #        Variance = unlist(base_model$sigma, use.names = FALSE))
+  return(base_model)
 }

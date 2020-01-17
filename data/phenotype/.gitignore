@@ -36,3 +36,15 @@ rn_rxn_norm_parameters.rds
 variance_components.rds
 yield_blue_final2.rds
 yield_site_final2.rds
+glmm_rxn_norm_parameters.rds
+mcmc_chain1.rds
+mcmc_chain2.rds
+mcmc_chain3.rds
+mcmc_chain4.rds
+mcmc_chain5.rds
+mcmc_chain6.rds
+mcmc_chain7.rds
+mcmc_chain8.rds
+selected_variables.txt
+vcomp_bootstrap.rds
+vcomp_jackknife.rds

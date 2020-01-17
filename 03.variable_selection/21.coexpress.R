@@ -43,11 +43,12 @@ MEs <- MEList$eigengenes
 MEDiss = 1 - cor(MEs)
 METree <- hclust(as.dist(MEDiss), method = "average")
 plot(METree, main = "Clustering of module eigengenes", xlab = "", sub = "")
-mergeList <- seq(0.1, 0.9, 0.05) %>%
-  map(function(i) {
-    mergeCloseModules(expr0, dynamicColors, cutHeight = i, verbose = 3)
-  })
-merge_num <- sapply(mergeList, function(m) ncol(m$newMEs))
+# mergeList <- seq(0.1, 0.9, 0.05) %>%
+#   map(function(i) {
+#     mergeCloseModules(expr0, dynamicColors, cutHeight = i, verbose = 3)
+#   })
+# merge_num <- sapply(mergeList, function(m) ncol(m$newMEs))
+# plot(seq(0.1, 0.9, 0.05), merge_num)
 merge <- mergeCloseModules(expr0, dynamicColors, cutHeight = 0.6, verbose = 3)
 mergedColors <- merge$colors
 mergedMEs <- merge$newMEs
@@ -58,10 +59,10 @@ plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),
                     guideHang = 0.05)
 moduleColors <- mergedColors
 colorOrder <- c("grey", standardColors(50))
-moduleLabels = match(moduleColors, colorOrder) - 1
+moduleLabels <- match(moduleColors, colorOrder) - 1
 MEs <- mergedMEs
 
-source("src/go_enrich.R")
+source("src/go_enrich_at.R")
 cand <- read_rds("data/gemma/nearest_genes.rds")
 gene_table <- read_rds("data/gemma/candidate_genes.rds") %>%
   by_row(function(r) {
@@ -104,15 +105,14 @@ ld_module_enrich <- ld_modules %>%
   p.adjust(method = "fdr")
 ld_enriched_modules <- ld_modules[ld_module_enrich <= 0.05]
 
-# # The only LD enriched module is also enriched for nearest genes
-# ld_enrich <- setdiff(ld_enriched_modules, enriched_modules) %>%
-#   map(function(m) {
-#     names(expr0)[mergedColors == m] %>% go_enrich()
-#   })
-# names(ld_enrich) <- setdiff(ld_enriched_modules, enriched_modules)
+ld_enrich <- setdiff(ld_enriched_modules, enriched_modules) %>%
+  map(function(m) {
+    names(expr0)[mergedColors == m] %>% go_enrich()
+  })
+names(ld_enrich) <- setdiff(ld_enriched_modules, enriched_modules)
 
-# terms <- c(cand_enrich, ld_enrich) %>%
-terms <- cand_enrich %>%
+terms <- c(cand_enrich, ld_enrich) %>%
+# terms <- cand_enrich %>%
   map(function(df) filter(df, q_val <= 0.05) %>% pull(Name))
 
 # Terms unique to modules
@@ -120,6 +120,7 @@ u <- map(seq_along(terms), function(i) setdiff(terms[[i]], reduce(terms[-i], uni
 names(u) <- names(cand_enrich)
 
 # Terms shared by at least 2 modules
-u2 <- setdiff(reduce(terms, union), unlist(u, use.names = FALSE))
+# u2 <- setdiff(reduce(terms, union), unlist(u, use.names = FALSE))
 
-write_rds(list(Unique = u, Shared = u2), "data/gemma/coexpress_enrich.rds")
+write_rds(list(cand_enrich = cand_enrich, ld_enrich = ld_enrich, 
+               Unique = u), "data/gemma/coexpress_enrich.rds")

@@ -10,9 +10,10 @@ gc()
 
 pca <- read_rds("data/gbs/pca_covariates.rds")
 
-rxn <- read_rds("data/phenotype/rn_rxn_norm_parameters.rds") %>%
+rxn <- read_rds("data/phenotype/glmm_rxn_norm_parameters.rds") %>%
   filter(PedigreeNew %in% taxa) %>%
-  spread(Variable, Value)
+  spread(Parameter, Value) %>%
+  rename(Hybrid = `(Intercept)`)
 
 
 # Convert the genotypes to BIMBAM format ----------------------------------
@@ -42,5 +43,5 @@ gmap %>%
 # When using covariates, GEMMA requires the explicit specification of an intercept
 as_tibble(pca) %>%
   mutate(Intercept = 1) %>%
-  select(Intercept, PC1:PC9) %>%
+  select(Intercept, PC1:PC8) %>%
   write_tsv(., "data/gemma/covariates.txt", col_names = FALSE)

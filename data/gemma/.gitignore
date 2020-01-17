@@ -26,3 +26,17 @@ mash_weights.rds
 nearest_genes.rds
 norm_snp_mash_all.rds
 ppi_enrich.rds
+STable_lncRNA.csv
+STable_miRNA.csv
+closest_vs_genome_go_terms.csv
+closest_vs_genome_perm.csv
+closest_vs_genome_permute.rds
+closest_vs_ld_go_terms.csv
+closest_vs_ld_perm.csv
+closest_vs_ld_permute.rds
+go_terms_permute.csv
+ld_vs_genome_go_terms.csv
+ld_vs_genome_perm.csv
+ld_vs_genome_permute.rds
+mash_1by1.rds
+nearest_genes.csv

@@ -18,7 +18,7 @@ S <- map(gwas, function(df) pull(df, se)) %>%
   bind_cols() %>% as.matrix()
 
 # Degrees of freedom
-df <- 701 - 9 - 1
+df <- 727 - 8 - 1
 
 # Add phenotypes to the data matrices
 names(gwas) <- colnames(B) <- colnames(S) <- phenotypes
@@ -30,6 +30,7 @@ write_rds(list(beta_hat = B, s_hat = S, df = df), "data/gemma/mash_data.rds")
 # Identify the strongest effects and a random subset of effects to approximate
 # the null distribution.
 m_1by1 <- mash_1by1(mash_set_data(B, S, df = df))
+write_rds(m_1by1, "data/gemma/mash_1by1.rds")
 strong_subset <- get_significant_results(m_1by1, thresh = 0.1)
 random_subset <- sample(1:nrow(B), 40000)
 
@@ -57,7 +58,7 @@ svd_Z <- svd(Z, nu = P, nv = P)
 U2 <- (svd_Z$v %*% diag(svd_Z$d[1:P])^2 %*% t(svd_Z$v))/ncol(Z)
 
 # Rank-Q approximation of Z using SFA
-Q <- 5
+Q <- 3
 write_tsv(as_tibble(Z), "data/gemma/centered_cov.txt", col_names = FALSE)
 system(paste0("./src/sfa/bin/sfa_linux -gen data/gemma/centered_cov.txt -g ", 
               nrow(Z), " -n ", ncol(Z), " -k ", Q, " -o data/gemma/gemma_norm"))

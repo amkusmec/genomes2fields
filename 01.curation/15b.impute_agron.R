@@ -39,17 +39,17 @@ root_40 <- missing %>%
 
 # Modified yield table for 100% coverage sites ----------------------------
 yield %>%
-  mutate(Stand = if_else(Site %in% stand_0, Stand, as.integer(NA)), 
-         StalkLodging = if_else(Site %in% stalk_0, StalkLodging, as.integer(NA)), 
-         RootLodging = if_else(Site %in% root_0, RootLodging, as.integer(NA))) %>%
+  mutate(Stand = if_else(Site %in% stand_0, Stand, as.numeric(NA)), 
+         StalkLodging = if_else(Site %in% stalk_0, StalkLodging, as.numeric(NA)), 
+         RootLodging = if_else(Site %in% root_0, RootLodging, as.numeric(NA))) %>%
   write_rds(., "data/phenotype/yield_agron0.rds")
 
 
 # Imputation for 40% coverage sites ---------------------------------------
 yield <- yield %>%
-  mutate(Stand = if_else(Site %in% stand_40, Stand, as.integer(NA)), 
-         StalkLodging = if_else(Site %in% stalk_40, StalkLodging, as.integer(NA)), 
-         RootLodging = if_else(Site %in% root_40, RootLodging, as.integer(NA)))
+  mutate(Stand = if_else(Site %in% stand_40, Stand, as.numeric(NA)), 
+         StalkLodging = if_else(Site %in% stalk_40, StalkLodging, as.numeric(NA)), 
+         RootLodging = if_else(Site %in% root_40, RootLodging, as.numeric(NA)))
 
 # Remove sites without complete field layout information
 no_field <- yield %>%
@@ -69,9 +69,9 @@ stalk_40 <- setdiff(stalk_40, union(stalk_0, no_field))
 root_40 <- setdiff(root_40, union(root_0, no_field))
 
 yield <- yield %>%
-  mutate(Stand = if_else(Site %in% stand_40_n, as.integer(NA), Stand), 
-         StalkLodging = if_else(Site %in% stalk_40_n, as.integer(NA), StalkLodging), 
-         RootLodging = if_else(Site %in% root_40_n, as.integer(NA), RootLodging))
+  mutate(Stand = if_else(Site %in% stand_40_n, as.numeric(NA), Stand), 
+         StalkLodging = if_else(Site %in% stalk_40_n, as.numeric(NA), StalkLodging), 
+         RootLodging = if_else(Site %in% root_40_n, as.numeric(NA), RootLodging))
 
 # Impute stand count
 for (i in stand_40) {

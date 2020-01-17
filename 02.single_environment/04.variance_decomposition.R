@@ -37,13 +37,26 @@ vcomp <- parLapply(cl, 1:nrow(variables), function(i) {
              Colf = as.character(Column))
     var_decomp(temp, r)
   })
-vcomp <- bind_rows(vcomp)
+# vcomp <- bind_rows(vcomp)
+names(vcomp) <- with(variables, paste(Environment, Year, sep = "_"))
 write_rds(vcomp, "data/phenotype/variance_components.rds")
 stopCluster(cl)
 
 
+# Get the unscaled variance components ------------------------------------
+vcomp2 <- names(vcomp) %>%
+  map_df(function(n) {
+    x <- str_split(n, "_") %>% unlist()
+    tibble(Year = x[2], 
+           Environment = x[1], 
+           Component = names(vcomp[[n]]$sigma) %>% str_remove(., "u:"), 
+           Variance = unlist(vcomp[[n]]$sigma, use.names = FALSE), 
+           SE = diag(vcomp[[n]]$sigmaSE))
+  })
+
+
 # Rename effects ----------------------------------------------------------
-vcomp <- vcomp %>%
+vcomp2 <- vcomp2 %>%
   mutate(Component = str_replace(Component, "Colf", "Column") %>%
            str_replace(., "PedigreeNew", "Genotype") %>%
            str_replace(., "Row$", "Smooth Spatial") %>%
@@ -52,11 +65,12 @@ vcomp <- vcomp %>%
          Component = factor(Component, ordered = TRUE, 
                             levels = rev(c("Genotype", "Block", "Row", "Column", 
                                        "Smooth Spatial", "Residual"))), 
-         Site = paste(Environment, Year, sep = "_"))
+         Site = paste(Environment, Year, sep = "_")) %>%
+  filter(Year != 2017)
 
 
 # Plot of unscaled components ---------------------------------------------
-ggplot(vcomp, aes(x = Site, y = Variance)) + theme_classic() +
+ggplot(vcomp2, aes(x = Site, y = Variance)) + theme_classic() +
   geom_col(aes(fill = Component), colour = "black") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_brewer(type = "qual", palette = "Set2")
@@ -64,7 +78,7 @@ ggsave("figures/single/var_unscaled.pdf", width = 11, height = 6, units = "in", 
 
 
 # Plot of scale components ------------------------------------------------
-vcomp %>%
+vcomp2 %>%
   group_by(Site) %>%
   mutate(Variance = Variance/sum(Variance)) %>%
   ungroup() %>%
@@ -76,7 +90,7 @@ vcomp %>%
 ggsave("figures/single/var_scaled.pdf", width = 11, height = 6, units = "in", dpi = 300)
 
 
-vcomp %>%
+vcomp2 %>%
   filter(str_detect(Site, "NEH")) %>%
   group_by(Site) %>%
   mutate(Variance = Variance/sum(Variance)) %>%
@@ -88,3 +102,10 @@ vcomp %>%
     scale_y_continuous(labels = scales::percent) +
     labs(x = "", y = expression(sigma[P]^2))
 ggsave("figures/single/NEH_var_scaled.pdf", width = 6, height = 4, units = "in", dpi = 300)
+
+
+gh2 <- map_dbl(vcomp, function(m) {
+  gv <- drop(m$sigma$`u:PedigreeNew`)
+  pev <- mean(diag(m$PevU$`u:PedigreeNew`$Yield))
+  1 - pev/gv
+})

@@ -18,3 +18,5 @@ common_gwas.log
 ld_test.R
 Zm_GAMER_anno.txt
 go_permute.log
+mcmc.log
+org.Zmays.eg.db
