@@ -8,13 +8,19 @@ library(gridExtra)
 
 # A: phenotypic distributions ---------------------------------------------
 rxn <- read_rds("data/phenotype/glmm_rxn_norm_parameters.rds") %>%
-  mutate(Parameter = str_replace(Parameter, "\\(Intercept\\)", "Hybrid"))
+  mutate(Parameter2 = str_replace(Parameter, "\\(Intercept\\)", "Intercept") %>%
+           str_replace("TMAX_X0.825_X0.95", "Pre-anthesis max. temp.") %>%
+           str_replace("TMAX_X0.875_X1.425", "Post-anthesis max. temp.") %>%
+           str_replace("SR_X0.65_X1.425", "Mid-season solar radiation") %>%
+           str_replace("NET_X0.175_X1.4", "Whole season net evapotranspiration"))
 pA <- ggplot(rxn, aes(x = Value)) + theme_bw() + 
-  geom_density() + facet_wrap(~ Parameter, scales = "free") + 
+  geom_density() + facet_wrap(~ Parameter2, scales = "free") + 
   labs(x = "", y = "Density")
 
 
 # B: genetic correlations -------------------------------------------------
+phenos <- c("Intercept", "Whole season net evapotranspiration", "Mid-season solar radiation", 
+            "Pre-anthesis max. temp.", "Post-anthesis max. temp.")
 output <- list.files("data/phenotype", "mcmc_chain[1-8]\\.rds", full.names = TRUE) %>%
   map(function(f) {
     temp <- read_rds(f)
@@ -39,20 +45,20 @@ cor_list <- lapply(1:nrow(vcov_gibbs), function(j) {
   cov2cor(m)
 })
 cor_list <- abind(cor_list, along = 3)
+dimnames(cor_list)[[1]] <- phenos
+dimnames(cor_list)[[2]] <- phenos
 
 ql <- apply(cor_list, c(1, 2), quantile, probs = 0.025)
 ql[upper.tri(ql, diag = TRUE)] <- NA
 ql <- as_tibble(ql, rownames = "Phenotype1") %>%
   gather(Phenotype2, Lower, -Phenotype1) %>%
-  filter(!is.na(Lower)) %>%
-  mutate(Phenotype2 = str_replace(Phenotype2, "\\(Intercept\\)", "Hybrid"))
+  filter(!is.na(Lower))
 
 qu <- apply(cor_list, c(1, 2), quantile, probs = 0.975)
 qu[upper.tri(qu, diag = TRUE)] <- NA
 qu <- as_tibble(qu, rownames = "Phenotype1") %>%
   gather(Phenotype2, Upper, -Phenotype1) %>%
-  filter(!is.na(Upper)) %>%
-  mutate(Phenotype2 = str_replace(Phenotype2, "\\(Intercept\\)", "Hybrid"))
+  filter(!is.na(Upper))
 
 limits <- inner_join(ql, qu, by = c("Phenotype1", "Phenotype2")) %>%
   mutate(Lower = round(Lower, 2), 
@@ -65,19 +71,18 @@ vcov <- enframe(colMeans(vcov_gibbs)) %>%
   separate(name, c("Phenotype1", "Phenotype2"), sep = ":", remove = TRUE) %>%
   spread(Phenotype2, value)
 vcov <- as.matrix(vcov[, -1])
-rownames(vcov) <- colnames(vcov)
+rownames(vcov) <- colnames(vcov) <- phenos
 
 corg <- cov2cor(vcov)
 corg[upper.tri(corg, diag = TRUE)] <- NA
 corg <- as_tibble(corg, rownames = "Phenotype1") %>%
   gather(Phenotype2, Mean, -Phenotype1) %>%
   filter(!is.na(Mean)) %>%
-  mutate(Phenotype2 = str_replace(Phenotype2, "\\(Intercept\\)", "Hybrid")) %>%
   arrange(Phenotype1, Phenotype2)
 
 corg <- inner_join(corg, limits, by = c("Phenotype1", "Phenotype2")) %>%
-  mutate(Phenotype1 = factor(Phenotype1, levels = sort(unique(Phenotype1)), ordered = TRUE), 
-         Phenotype2 = factor(Phenotype2, levels = rev(sort(unique(Phenotype2))), ordered = TRUE))
+  mutate(Phenotype1 = factor(Phenotype1, levels = phenos, ordered = TRUE), 
+         Phenotype2 = factor(Phenotype2, levels = rev(phenos), ordered = TRUE))
 
 pB <- ggplot(corg, aes(x = Phenotype1, y = Phenotype2)) + theme_classic() + 
   geom_tile(aes(fill = Mean)) + labs(x = "", y = "", fill = expression(r[G]^2)) +
@@ -88,9 +93,8 @@ pB <- ggplot(corg, aes(x = Phenotype1, y = Phenotype2)) + theme_classic() +
 
 
 # C: heritabilities -------------------------------------------------------
-rxn <- spread(rxn, Parameter, Value) %>%
-  rename(`(Intercept)` = Hybrid)
-est <- map_df(2:6, function(p) {
+rxn <- spread(rxn, Parameter, Value)
+est <- map_df(3:7, function(p) {
   varE_A <- scan(paste0("data/bglr/h2/eigA_", names(rxn)[p], "_varE.dat"))[-c(1:400)]
   varU_A <- scan(paste0("data/bglr/h2/eigA_", names(rxn)[p], "_ETA_A_varU.dat"))[-c(1:400)]
   
@@ -103,14 +107,18 @@ est <- map_df(2:6, function(p) {
          h2 = c(varU_A/(varU_A + varE_A), 
                 (varUA_D + varUD_D)/(varUA_D + varUD_D + varE_D)))
 }) %>% 
-  mutate(Phenotype = str_replace(Phenotype, "\\(Intercept\\)", "Hybrid")) %>%
+  mutate(Phenotype = str_replace(Phenotype, "\\(Intercept\\)", "Intercept") %>%
+           str_replace("TMAX_X0.825_X0.95", "Pre-anthesis max. temp.") %>%
+           str_replace("TMAX_X0.875_X1.425", "Post-anthesis max. temp.") %>%
+           str_replace("SR_X0.65_X1.425", "Mid-season solar radiation") %>%
+           str_replace("NET_X0.175_X1.4", "Whole season net evapotranspiration")) %>%
   group_by(Phenotype, Model) %>%
   summarise(Mean = mean(h2), 
             Lower = quantile(h2, probs = 0.025), 
             Upper = quantile(h2, probs = 0.975)) %>%
   ungroup() %>%
   mutate(Model = factor(Model), 
-         Phenotype = factor(Phenotype, levels = unique(Phenotype), ordered = TRUE))
+         Phenotype = factor(Phenotype, levels = phenos, ordered = TRUE))
 
 pC <- ggplot(est, aes(x = Phenotype, y = Mean, group = Model)) + theme_bw() +
   geom_pointrange(aes(ymin = Lower, ymax = Upper, colour = Model), 

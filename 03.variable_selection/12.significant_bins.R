@@ -121,14 +121,14 @@ ld <- parLapply(cl, 1:10, function(r) {
 })
 
 ld <- bind_rows(ld) %>%
-  mutate(Region = rep(c("Short arm", "Pericentromere", "Long arm"), times = 10))
+  mutate(Region = rep(c("Short arm", "Pericentromeric region", "Long arm"), times = 10))
 stopCluster(cl)
 write_csv(ld, "data/decay_regions.csv")
 
 ld %>%
   mutate(Chr = factor(Chr), 
          Decay = Decay/1e6,
-         Region = factor(Region, levels = c("Short arm", "Pericentromere", "Long arm"), ordered = TRUE)) %>%
+         Region = factor(Region, levels = c("Short arm", "Pericentromeric region", "Long arm"), ordered = TRUE)) %>%
 ggplot(., aes(x = Chr, y = Decay, group = Region, fill = Region)) + 
   geom_col(position = "dodge", colour = "black") + theme_bw() + #scale_y_log10() +
   #labs(x = "Chromosome", y = expression(paste(log[10], "(Decay Distance)"))) +

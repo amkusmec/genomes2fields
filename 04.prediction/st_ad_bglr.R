@@ -112,6 +112,22 @@ stopCluster(cl)
 
 
 # Compute correlations ----------------------------------------------------
+pred_A <- pred_A %>%
+  mutate(Phenotype = str_replace(Phenotype, "\\(Intercept\\)", "Intercept") %>%
+           str_replace("TMAX_X0.825_X0.95", "Pre-anthesis max. temp.") %>%
+           str_replace("TMAX_X0.875_X1.425", "Post-anthesis max. temp.") %>%
+           str_replace("SR_X0.65_X1.425", "Mid-season solar radiation") %>%
+           str_replace("NET_X0.175_X1.4", "Whole season net evapotranspiration"))
+pred_AD <- pred_AD %>%
+  mutate(Phenotype = str_replace(Phenotype, "\\(Intercept\\)", "Intercept") %>%
+           str_replace("TMAX_X0.825_X0.95", "Pre-anthesis max. temp.") %>%
+           str_replace("TMAX_X0.875_X1.425", "Post-anthesis max. temp.") %>%
+           str_replace("SR_X0.65_X1.425", "Mid-season solar radiation") %>%
+           str_replace("NET_X0.175_X1.4", "Whole season net evapotranspiration"))
+names(pheno)[2:6] <- c("Intercept", "Whole season net evapotranspiration", 
+                       "Mid-season solar radiation", "Pre-anthesis max. temp.", 
+                       "Post-anthesis max. temp.")
+
 cors_A <- split(pred_A, list(pred_A$Phenotype, pred_A$Size, pred_A$Replicate)) %>%
   map_df(function(df) {
     y <- pheno[[which(names(pheno) == df$Phenotype[1])]]
@@ -133,7 +149,12 @@ tau_A <- split(pred_A, list(pred_A$Phenotype, pred_A$Size, pred_A$Replicate)) %>
   mutate(Model = "A") %>%
   select(Model, Phenotype:Tau)
 
-pheno2 <- read_rds("data/phenotype/glmm_rxn_norm_parameters.rds")
+pheno2 <- read_rds("data/phenotype/glmm_rxn_norm_parameters.rds") %>% 
+  mutate(Parameter = str_replace(Parameter, "\\(Intercept\\)", "Intercept") %>%
+           str_replace("TMAX_X0.825_X0.95", "Pre-anthesis max. temp.") %>%
+           str_replace("TMAX_X0.875_X1.425", "Post-anthesis max. temp.") %>%
+           str_replace("SR_X0.65_X1.425", "Mid-season solar radiation") %>%
+           str_replace("NET_X0.175_X1.4", "Whole season net evapotranspiration"))
 mae_A <- pred_A %>%
   filter(!is.na(Prediction)) %>%
   inner_join(., pheno2, by = c("Phenotype" = "Parameter", "PedigreeNew")) %>%

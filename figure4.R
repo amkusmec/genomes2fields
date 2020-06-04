@@ -7,9 +7,8 @@ source("src/manhattan_gemma.R")
 
 m2 <- read_rds("data/gemma/norm_snp_mash.rds")
 m3 <- read_rds("data/gemma/norm_snp_mash_all.rds")
-phenotypes <- list.files("data/gemma/output", "*\\.assoc\\.txt") %>%
-  str_remove(., "norm_") %>%
-  str_remove(., "\\.assoc\\.txt")
+phenotypes <-c("Intercept", "Whole season net evapotranspiration", "Mid-season solar radiation", 
+               "Pre-anthesis max. temp.", "Post-anthesis max. temp.")
 snps <- read_rds("data/gbs/add_snps.rds")$GM
 
 
@@ -66,14 +65,14 @@ colnames(pi_mat) <- names(m2$fitted_g$Ulist)
 colSums(pi_mat) %>% sort(decreasing = TRUE) %>% head()
 
 cmat <- cov2cor(m2$fitted_g$Ulist$ED_1)
-rownames(cmat) <- colnames(cmat) <- colnames(m2$result$lfsr)
+rownames(cmat) <- colnames(cmat) <- phenotypes
 cmat[upper.tri(cmat, diag = FALSE)] <- NA
 
 pC <- as_tibble(cmat, rownames = "Phenotype1") %>%
   gather(Phenotype2, R, -Phenotype1) %>%
   filter(!is.na(R)) %>%
-  mutate(Phenotype1 = factor(Phenotype1, levels = unique(Phenotype1), ordered = TRUE), 
-         Phenotype2 = factor(Phenotype2, levels = rev(unique(Phenotype2)), ordered = TRUE)) %>%
+  mutate(Phenotype1 = factor(Phenotype1, levels = phenotypes, ordered = TRUE), 
+         Phenotype2 = factor(Phenotype2, levels = rev(phenotypes), ordered = TRUE)) %>%
   ggplot(., aes(x = Phenotype1, y = Phenotype2, fill = R)) + theme_classic() + 
     geom_tile() +  scale_x_discrete(position = "top") + 
     scale_fill_distiller(type = "div", palette = "RdBu", limits = c(-1, 1)) + 
@@ -87,16 +86,21 @@ u <- svd(cov2cor(m2$fitted_g$Ulist$ED_1))$u
 d <- svd(cov2cor(m2$fitted_g$Ulist$ED_1))$d
 v <- vold[order(colnames(m2$result$lfsr)), ]
 
-pD <- tibble(Phenotype = colnames(m2$result$lfsr), 
+fills <- c("Intercept" = "grey60", 
+           "Whole season net evapotranspiration" = "brown", 
+           "Mid-season solar radiation" = "orange", 
+           "Pre-anthesis max. temp." = "red", 
+           "Post-anthesis max. temp." = "red")
+pD <- tibble(Phenotype = phenotypes, 
              V = v[, 1]/v[, 1][which.max(abs(v[, 1]))]) %>%
-  mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
+  # mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
   ggplot(., aes(x = Phenotype, y = V)) + theme_classic() + 
-    geom_col(aes(fill = Variable), colour = "black") + 
+    geom_col(aes(fill = Phenotype), colour = "black") + 
     labs(x = "", y = "", fill = "", 
          subtitle = paste0("Eigenvector 1, (PVE = ", 
                            round(d[1]^2/sum(d^2), 2)*100, "%)")) + 
-    scale_fill_manual(values = c("Hybrid" = "grey60", "TMAX" = "red", 
-                                 "SR" = "orange", "NET" = "brown")) + 
+    scale_fill_manual(values = fills) +
+    guides(fill = FALSE) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
@@ -107,7 +111,7 @@ pm_mash_beta <- m2$result$PosteriorMean*m_data$s_hat
 pm_mash_beta_mag <- pm_mash_beta[rowSums(m2$result$lfsr < 0.1) > 0, ]
 lfsr_mash <- m2$result$lfsr[rowSums(m2$result$lfsr < 0.1) > 0, ]
 shared_fold_size <- matrix(NA, nrow = ncol(lfsr_mash), ncol = ncol(lfsr_mash))
-colnames(shared_fold_size) <- rownames(shared_fold_size) <- colnames(m2$result$lfsr)
+colnames(shared_fold_size) <- rownames(shared_fold_size) <- phenotypes
 
 for (i in 1:ncol(lfsr_mash)) {
   for (j in 1:ncol(lfsr_mash)) { 
@@ -119,15 +123,15 @@ for (i in 1:ncol(lfsr_mash)) {
   }
 }
 
-shared_fold_size <- shared_fold_size[order(rownames(shared_fold_size)), 
-                                     order(colnames(shared_fold_size))]
+# shared_fold_size <- shared_fold_size[order(rownames(shared_fold_size)),
+#                                      order(colnames(shared_fold_size))]
 shared_fold_size[upper.tri(shared_fold_size, diag = FALSE)] <- NA
 
 pE <- as_tibble(shared_fold_size, rownames = "Phenotype1") %>%
   gather(Phenotype2, R, -Phenotype1) %>%
   filter(!is.na(R)) %>%
-  mutate(Phenotype1 = factor(Phenotype1, levels = sort(unique(Phenotype1)), ordered = TRUE), 
-         Phenotype2 = factor(Phenotype2, levels = rev(sort(unique(Phenotype2))), ordered = TRUE)) %>%
+  mutate(Phenotype1 = factor(Phenotype1, levels = phenotypes, ordered = TRUE), 
+         Phenotype2 = factor(Phenotype2, levels = rev(phenotypes), ordered = TRUE)) %>%
   ggplot(., aes(x = Phenotype1, y = Phenotype2, fill = R)) + theme_classic() + 
     geom_tile() + labs(x = "", y = "", fill = "") + 
     scale_fill_distiller(type = "seq", palette = "Greens", 

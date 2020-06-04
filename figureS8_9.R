@@ -5,19 +5,26 @@ library(gridExtra)
 
 
 m2 <- read_rds("data/gemma/norm_snp_mash.rds")
+phenotypes <-c("Intercept", "Whole season net evapotranspiration", "Mid-season solar radiation", 
+               "Pre-anthesis max. temp.", "Post-anthesis max. temp.")
+fills <- c("Intercept" = "grey60", 
+           "Whole season net evapotranspiration" = "brown", 
+           "Mid-season solar radiation" = "orange", 
+           "Pre-anthesis max. temp." = "red", 
+           "Post-anthesis max. temp." = "red")
 
 
 # ED_1 plots --------------------------------------------------------------
 # The first two panels recapitulate part of Figure 4
 cmat1 <- cov2cor(m2$fitted_g$Ulist$ED_1)
-rownames(cmat1) <- colnames(cmat1) <- colnames(m2$result$lfsr)
+rownames(cmat1) <- colnames(cmat1) <- phenotypes
 cmat1[upper.tri(cmat1, diag = FALSE)] <- NA
 
 pA1 <- as_tibble(cmat1, rownames = "Phenotype1") %>%
   gather(Phenotype2, R, -Phenotype1) %>%
   filter(!is.na(R)) %>%
-  mutate(Phenotype1 = factor(Phenotype1, levels = unique(Phenotype1), ordered = TRUE), 
-         Phenotype2 = factor(Phenotype2, levels = rev(unique(Phenotype2)), ordered = TRUE)) %>%
+  mutate(Phenotype1 = factor(Phenotype1, levels = phenotypes, ordered = TRUE), 
+         Phenotype2 = factor(Phenotype2, levels = rev(phenotypes), ordered = TRUE)) %>%
   ggplot(., aes(x = Phenotype1, y = Phenotype2, fill = R)) + theme_classic() + 
     geom_tile() + scale_x_discrete(position = "top") + 
     scale_fill_distiller(type = "div", palette = "RdBu", limits = c(-1, 1)) + 
@@ -25,30 +32,28 @@ pA1 <- as_tibble(cmat1, rownames = "Phenotype1") %>%
     labs(x = "", y = "", fill = "", subtitle = "relative frequency = 36.2%")
 
 svd1 <- svd(cov2cor(m2$fitted_g$Ulist$ED_1))
-pB1 <- tibble(Phenotype = colnames(m2$result$lfsr), 
+pB1 <- tibble(Phenotype = phenotypes, 
               V = svd1$v[, 1]/svd1$v[, 1][which.max(abs(svd1$v[, 1]))]) %>%
-  mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
+  # mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
   ggplot(., aes(x = Phenotype, y = V)) + theme_classic() + 
-    geom_col(aes(fill = Variable), colour = "black") + 
+    geom_col(aes(fill = Phenotype), colour = "black") + 
     labs(x = "", y = "", fill = "", 
          subtitle = paste0("Eigenvector 1, (PVE = ", 
                            round(svd1$d[1]^2/sum(svd1$d^2), 2)*100, "%)")) + 
-    scale_fill_manual(values = c("Hybrid" = "grey60", "TMAX" = "red", 
-                                 "SR" = "orange", "NET" = "brown")) + 
+    scale_fill_manual(values = fills) + 
     scale_y_continuous(limits = c(-1, 1)) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
     guides(fill = FALSE)
 
-pC1 <- tibble(Phenotype = colnames(m2$result$lfsr), 
+pC1 <- tibble(Phenotype = phenotypes, 
               V = svd1$v[, 2]/svd1$v[, 2][which.max(abs(svd1$v[, 2]))]) %>%
-  mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
+  # mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
   ggplot(., aes(x = Phenotype, y = V)) + theme_classic() + 
-    geom_col(aes(fill = Variable), colour = "black") + 
+    geom_col(aes(fill = Phenotype), colour = "black") + 
     labs(x = "", y = "", fill = "", 
          subtitle = paste0("Eigenvector 2, (PVE = ", 
                            round(svd1$d[2]^2/sum(svd1$d^2), 2)*100, "%)")) + 
-    scale_fill_manual(values = c("Hybrid" = "grey60", "TMAX" = "red", 
-                                 "SR" = "orange", "NET" = "brown")) +
+    scale_fill_manual(values = fills) +
     scale_y_continuous(limits = c(-1, 1)) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
     guides(fill = FALSE)
@@ -74,14 +79,14 @@ ggsave("figures/select/mash_ED1_all.pdf", plot = gp1, width = 12, height = 4,
 
 # ED_2 plots --------------------------------------------------------------
 cmat2 <- cov2cor(m2$fitted_g$Ulist$ED_2)
-rownames(cmat2) <- colnames(cmat2) <- colnames(m2$result$lfsr)
+rownames(cmat2) <- colnames(cmat2) <- phenotypes
 cmat2[upper.tri(cmat2, diag = FALSE)] <- NA
 
 pA2 <- as_tibble(cmat2, rownames = "Phenotype1") %>%
   gather(Phenotype2, R, -Phenotype1) %>%
   filter(!is.na(R)) %>%
-  mutate(Phenotype1 = factor(Phenotype1, levels = unique(Phenotype1), ordered = TRUE), 
-         Phenotype2 = factor(Phenotype2, levels = rev(unique(Phenotype2)), ordered = TRUE)) %>%
+  mutate(Phenotype1 = factor(Phenotype1, levels = phenotypes, ordered = TRUE), 
+         Phenotype2 = factor(Phenotype2, levels = rev(phenotypes), ordered = TRUE)) %>%
   ggplot(., aes(x = Phenotype1, y = Phenotype2, fill = R)) + theme_classic() + 
     geom_tile() + scale_x_discrete(position = "top") + 
     scale_fill_distiller(type = "div", palette = "RdBu", limits = c(-1, 1)) + 
@@ -89,16 +94,15 @@ pA2 <- as_tibble(cmat2, rownames = "Phenotype1") %>%
     labs(x = "", y = "", fill = "", subtitle = "relative frequency = 11.7%")
 
 svd2 <- svd(cov2cor(m2$fitted_g$Ulist$ED_2))
-pB2 <- tibble(Phenotype = colnames(m2$result$lfsr), 
+pB2 <- tibble(Phenotype = phenotypes, 
               V = svd2$v[, 1]/svd2$v[, 1][which.max(abs(svd2$v[, 1]))]) %>%
-  mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
+  # mutate(Variable = str_remove(Phenotype, "_X[01]\\.[0-9]{2,3}_X[01]\\.[0-9]{1,3}")) %>%
   ggplot(., aes(x = Phenotype, y = V)) + theme_classic() + 
-    geom_col(aes(fill = Variable), colour = "black") + 
+    geom_col(aes(fill = Phenotype), colour = "black") + 
     labs(x = "", y = "", fill = "", 
          subtitle = paste0("Eigenvector 1, (PVE = ", 
                            round(svd2$d[1]^2/sum(svd2$d^2), 2)*100, "%)")) + 
-    scale_fill_manual(values = c("Hybrid" = "grey60", "TMAX" = "red", 
-                                 "SR" = "orange", "NET" = "brown")) + 
+    scale_fill_manual(values = fills) + 
     scale_y_continuous(limits = c(-1, 1)) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
     guides(fill = FALSE)
