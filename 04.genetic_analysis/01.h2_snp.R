@@ -1,3 +1,5 @@
+### Estimate SNP-heritability for additive and additive/dominance models.
+
 library(tidyverse)
 library(BGLR)
 

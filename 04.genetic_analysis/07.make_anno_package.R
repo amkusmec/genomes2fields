@@ -1,4 +1,7 @@
-## RUN ONCE
+### RUN ONCE
+
+### Creates a custom annotation package for calculating the information content
+### of GO terms.
 
 library(tidyverse)
 

@@ -1,3 +1,5 @@
+### Explore the MASH results.
+
 library(tidyverse)
 library(mashr)
 

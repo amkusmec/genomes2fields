@@ -1,3 +1,5 @@
+### Compute GO term enrichment based on Arabidopsis orthologs.
+
 library(tidyverse)
 library(purrrlyr)
 source("src/go_enrich_at.R")

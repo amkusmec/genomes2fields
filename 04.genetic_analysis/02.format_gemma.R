@@ -1,3 +1,5 @@
+### Format data for GWAS using GEMMA.
+
 library(tidyverse)
 
 

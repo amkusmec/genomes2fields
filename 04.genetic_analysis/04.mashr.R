@@ -1,3 +1,5 @@
+### Analyze GWAS results using multivariate adaptive shrinkage.
+
 library(tidyverse)
 library(mashr)
 
@@ -94,7 +96,7 @@ snp_names <- gwas[[1]]$rs[strong_subset]
 for (i in 1:5) rownames(m2$result[[i]]) <- snp_names
 write_rds(m2, "data/gemma/norm_snp_mash.rds")
 
-# Compute posterior sumaries for all SNPs
-m3 <- mash(data_all, g = get_fitted_g(m), fixg = TRUE)
-for (i in 1:5) rownames(m3$result[[i]]) <- gwas[[1]]$rs
-write_rds(m3, "data/gemma/norm_snp_mash_all.rds")
+# # Compute posterior sumaries for all SNPs
+# m3 <- mash(data_all, g = get_fitted_g(m), fixg = TRUE)
+# for (i in 1:5) rownames(m3$result[[i]]) <- gwas[[1]]$rs
+# write_rds(m3, "data/gemma/norm_snp_mash_all.rds")

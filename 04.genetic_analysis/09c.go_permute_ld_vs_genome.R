@@ -1,3 +1,6 @@
+### Permutation analysis for enrichment of GO terms at genes in LD with 
+### significant SNPs against all genes.
+
 library(tidyverse)
 library(parallel)
 source("src/go_enrich_at.R")

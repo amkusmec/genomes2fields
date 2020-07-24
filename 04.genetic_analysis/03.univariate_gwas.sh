@@ -1,5 +1,7 @@
 #!/bin/bash
 
+### Run GWAS with the MLM in GEMMA.
+
 cd data/gemma
 
 ../../src/gemma-0.98.1-linux-static -g g2f_hybrids.txt -p rxn_norm.txt -n 6 -gk 2 -o g2f_related

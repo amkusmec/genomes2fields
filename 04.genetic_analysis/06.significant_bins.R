@@ -1,3 +1,5 @@
+### Identify candidate genes based on chromosome-wise LD decay.
+
 library(tidyverse)
 library(readxl)
 library(QGenTools)

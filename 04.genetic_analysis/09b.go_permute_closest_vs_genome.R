@@ -1,3 +1,6 @@
+### Permutation analysis for enrichment of GO terms at genes closest to the 
+### significant SNPs against the background of all genes.
+
 library(tidyverse)
 library(parallel)
 source("src/go_enrich_at.R")

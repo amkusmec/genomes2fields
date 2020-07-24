@@ -1,3 +1,6 @@
+### Genomic prediction of reaction norm components using additive and 
+### additive/dominance GBLUP models.
+
 library(tidyverse)
 library(purrrlyr)
 library(BGLR)
