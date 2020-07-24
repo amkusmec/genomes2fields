@@ -40,3 +40,9 @@ ld_vs_genome_perm.csv
 ld_vs_genome_permute.rds
 mash_1by1.rds
 nearest_genes.csv
+candidate_genes.csv
+coexpress_enrich_ld.csv
+coexpress_enrich_nearest.csv
+significant_SNPs.csv
+table_s4.csv
+table_s5.csv

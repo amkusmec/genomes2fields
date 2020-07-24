@@ -47,3 +47,18 @@ lg <- lg_terms %>% filter(perm <= 0.05) %>% pull(Name)
 write_csv(cl_terms, "data/gemma/closest_vs_ld_perm.csv")
 write_csv(cg_terms, "data/gemma/closest_vs_genome_perm.csv")
 write_csv(lg_terms, "data/gemma/ld_vs_genome_perm.csv")
+
+
+cl_terms %>%
+  select(GO, Name, perm, white_draws, white, black, draws) %>%
+  rename(`GO ID` = GO, `GO Term` = Name, `Permutation p-value` = perm, 
+         Successes = white_draws, `Max. Successes` = white, Failures = black, 
+         Trials = draws) %>%
+  write_csv("data/gemma/table_s4.csv")
+
+cg_terms %>%
+  select(GO, Name, perm, white_draws, white, black, draws) %>%
+  rename(`GO ID` = GO, `GO Terms` = Name, `Permutation p-value` = perm, 
+         Successes = white_draws, `Max. Successes` = white, Failures = black, 
+         Trials = draws) %>%
+  write_csv("data/gemma/table_s5.csv")

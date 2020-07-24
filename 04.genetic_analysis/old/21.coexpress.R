@@ -124,3 +124,26 @@ names(u) <- names(cand_enrich)
 
 write_rds(list(cand_enrich = cand_enrich, ld_enrich = ld_enrich, 
                Unique = u), "data/gemma/coexpress_enrich.rds")
+
+cand_enrich <- cand_enrich %>%
+  map(function(df) filter(df, q_val <= 0.05))
+
+tibble(Module = rep(names(cand_enrich), sapply(cand_enrich, nrow))) %>%
+  bind_cols(., bind_rows(cand_enrich)) %>%
+  select(Module, GO, Name, p_val, q_val, white_draws, white, black, draws) %>%
+  rename(`GO ID` = GO, `GO Term` = Name, `p-value` = p_val, `q-value` = q_val, 
+         Successes = white_draws, `Max. Successes` = white, Failures = black, 
+         Trials = draws) %>%
+  write_csv("data/gemma/coexpress_enrich_nearest.csv")
+
+
+ld_enrich <- ld_enrich %>%
+  map(function(df) filter(df, q_val <= 0.05))
+
+tibble(Module = rep(names(ld_enrich), sapply(ld_enrich, nrow))) %>%
+  bind_cols(., bind_rows(ld_enrich)) %>%
+  select(Module, GO, Name, p_val, q_val, white_draws, white, black, draws) %>%
+  rename(`GO ID` = GO, `GO Term` = Name, `p-value` = p_val, `q-value` = q_val, 
+         Successes = white_draws, `Max. Successes` = white, Failures = black, 
+         Trials = draws) %>%
+  write_csv("data/gemma/coexpress_enrich_ld.csv")

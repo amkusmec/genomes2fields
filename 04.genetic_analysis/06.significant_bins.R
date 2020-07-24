@@ -151,6 +151,11 @@ sig <- by_row(sig, function(r) {
   }, .to = "Phenotype") %>%
   mutate(N_pheno = sapply(Phenotype, length))
 
+sig %>%
+  select(SNP:Position, Lower:Upper, N_pheno, Phenotype) %>%
+  mutate(Phenotype = sapply(Phenotype, paste, collapse = "; ")) %>%
+  dplyr::rename(`# Phenotypes` = N_pheno) %>% 
+  write_csv("data/gemma/significant_SNPs.csv")
 
 sranges <- with(sig, GRanges(seqnames = Chromosome, 
                              ranges = IRanges(start = Lower, end = Upper), 
@@ -191,6 +196,17 @@ gene_table <- gene_table %>%
   select(-revmap) %>%
   dplyr::rename(Chromosome = seqnames, Start = start, End = end)
 write_rds(gene_table, "data/gemma/candidate_genes.rds")
+
+gene_table %>%
+  mutate(Genes = str_split(Genes, ", ")) %>%
+  unnest(Genes) %>%
+  dplyr::rename(Gene = Genes) %>%
+  inner_join(., gff, by = c("Chromosome" = "chr", "Gene" = "gene")) %>%
+  select(Gene, Chromosome, start, end, SNPs, Phenotypes) %>%
+  dplyr::rename(Start = start, End = end) %>%
+  mutate(SNPs = str_replace_all(SNPs, ",", ";"), 
+         Phenotypes = str_replace_all(Phenotypes, ",", ";")) %>%
+  write_csv("data/gemma/candidate_genes.csv")
 
 
 snp_ranges <- with(sig, GRanges(seqnames = Chromosome, 

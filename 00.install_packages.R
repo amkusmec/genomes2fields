@@ -16,9 +16,9 @@ source("https://bioconductor.org/biocLite.R")
 biocLite("qvalue")
 biocLite("AnnotationForge")
 biocLite("GOSemSim")
-install.packages("isva")
+# install.packages("isva")
 
-devtools::install_github("stephenslab/susieR@0.8.0")
+# devtools::install_github("stephenslab/susieR@0.8.0")
 devtools::install_github("stephenslab/mashr")
 
 devtools::install_github("amkusmec/FastMath")
