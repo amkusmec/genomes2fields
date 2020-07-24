@@ -1,3 +1,5 @@
+### Re-run the stage one models with genotype forced to be a random effect.
+
 library(tidyverse)
 library(sommer)
 library(parallel)
