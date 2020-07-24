@@ -1,5 +1,9 @@
 #!/bin/bash
 
+### Convert the remaining SNP files, combine, and filter. Estimate imputation 
+### accuracy through masking. Create reference NAM parent genotypes through 
+### self-imputation.
+
 # Convert HapMap to VCF and recode indels
 cd data/gbs/HapMap1
 ~/tassel-5-standalone/run_pipeline.pl -Xmx50g -h maizeHapMapV1.hmp.txt \

@@ -1,3 +1,6 @@
+### Create synthetic hybrid genotypes where the hybrid genotype is the mean
+### of the two parental genotypes.
+
 library(tidyverse)
 library(lubridate)
 library(purrrlyr)

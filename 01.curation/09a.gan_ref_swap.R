@@ -1,3 +1,5 @@
+### Standardize reference alleles between the NAM parent and G2F/Ames files.
+
 library(tidyverse)
 library(parallel)
 options(readr.num_columns = 0)

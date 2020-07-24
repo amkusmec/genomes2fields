@@ -1,3 +1,5 @@
+### Format data for fastStructure analysis.
+
 library(tidyverse)
 
 

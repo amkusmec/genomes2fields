@@ -1,5 +1,7 @@
 #!/bin/bash
 
+### Impute the combined SNP set.
+
 cd data/gbs
 for i in `seq 1 10`; do
   java -Xmx100g -jar ../../src/beagle.28Sep18.793.jar gt=GAN_combined_chrom${i}.vcf.gz gp=true out=GAN_reference_chrom${i} nthreads=8

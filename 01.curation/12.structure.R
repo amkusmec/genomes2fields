@@ -1,3 +1,6 @@
+### Principal components analysis on the hybrid genotype matrix to estimate 
+### population structure.
+
 library(tidyverse)
 
 
@@ -41,9 +44,9 @@ GD <- hyb$GD
 
 # PCA for population structure --------------------------------------------
 ### Can be run in the background with data/gbs/pca.R
-# pca <- prcomp(GD, center = TRUE, scale = TRUE)
-# write_rds(pca, "data/gbs/pca.rds")
-pca <- read_rds("data/gbs/pca.rds")
+pca <- prcomp(GD, center = TRUE, scale = TRUE)
+write_rds(pca, "data/gbs/pca.rds")
+# pca <- read_rds("data/gbs/pca.rds")
 
 var_exp <- pca$sdev^2
 var_exp <- var_exp/sum(var_exp)

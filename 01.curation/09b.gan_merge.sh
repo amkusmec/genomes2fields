@@ -1,5 +1,7 @@
 #!/bin/bash
 
+### Perform QC and combine SNP files.
+
 for i in `seq 1 10`; do
   # Filter NAM RIL SNPs
   bgzip NAM_imputed_chrom${i}.vcf

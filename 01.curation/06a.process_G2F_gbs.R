@@ -1,3 +1,7 @@
+### Process the G2F GBS data. The primary purpose is to discard samples that are
+### not present in the phenotype files, have too much missing data, and identify 
+### samples from the same inbred line.
+
 library(tidyverse)
 library(parallel)
 

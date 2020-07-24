@@ -1,5 +1,7 @@
 #!/bin/bash
 
+### Run fastStructure analyses for 2-15 clusters with 20 replicates each.
+
 python ~/trs_selection/src/fastStructure/structure.py -K 2 --input=data/gbs/g2f_hyb_bin --output=data/structure/g2f_hyb_rep1 &
 python ~/trs_selection/src/fastStructure/structure.py -K 2 --input=data/gbs/g2f_hyb_bin --output=data/structure/g2f_hyb_rep2 &
 python ~/trs_selection/src/fastStructure/structure.py -K 2 --input=data/gbs/g2f_hyb_bin --output=data/structure/g2f_hyb_rep3 &

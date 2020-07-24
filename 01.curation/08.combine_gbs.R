@@ -1,3 +1,5 @@
+### Combine the re-called G2F/Ames SNPs for imputation.
+
 library(tidyverse)
 library(parallel)
 

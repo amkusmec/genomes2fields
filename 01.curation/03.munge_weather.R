@@ -1,3 +1,5 @@
+### Download and process weather data from G2F repositories
+
 library(tidyverse)
 library(lubridate)
 

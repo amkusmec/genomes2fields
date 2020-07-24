@@ -1,3 +1,7 @@
+### Various exploratory analyses of the PCA results to examine the population 
+### structure. It is easy to see structure induced by the inclusion of the 
+### NAM RILs and by the crossing structure of the experiments.
+
 library(tidyverse)
 
 

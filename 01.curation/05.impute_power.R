@@ -1,3 +1,7 @@
+### Retrieve solar radiation values for days with missing/invalid values from 
+### NASA's POWER project. Data are also retrieved to estimate evapotranspiration 
+### using the Penman-Monteith equations.
+
 library(tidyverse)
 library(purrrlyr)
 library(lubridate)

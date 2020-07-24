@@ -1,3 +1,5 @@
+### Implements the deltaK method.
+
 library(tidyverse)
 
 

@@ -1,3 +1,7 @@
+### Identify days that require imputation of minimum/maximum temperature and/or 
+### precipitation. Daily values are retrieved from the PRISM project and assigned 
+### to the nearest 4 km x 4 km grid based on great circle distance.
+
 library(tidyverse)
 library(purrrlyr)
 library(lubridate)

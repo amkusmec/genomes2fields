@@ -1,3 +1,5 @@
+### Reformat SNP files into VCF format or changing sample names.
+
 setwd("data/gbs")
 
 library(tidyverse)

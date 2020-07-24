@@ -94,8 +94,7 @@ munge <- munge %>%
   rename(SR = ALLSKY_SFC_SW_DWN)
 
 
-# Calculate developmental time in photothermal time -----------------------
-# PTT = SG_DAY_HOUR_AVG*CHU
+# Calculate developmental time in crop heat units --------------------------
 munge <- munge %>%
   mutate(Tm = if_else(TMIN < 4.4, 4.4, TMIN), 
          TM = if_else(TMAX < 10, 10, TMAX), 

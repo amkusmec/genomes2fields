@@ -1,3 +1,5 @@
+### Download metadata and process experiment metadata from the G2F repositories
+
 library(tidyverse)
 library(readxl)
 

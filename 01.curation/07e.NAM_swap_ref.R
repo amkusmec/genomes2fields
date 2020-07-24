@@ -1,3 +1,5 @@
+### Standardize the reference allele across the NAM parent genotypes.
+
 library(tidyverse)
 options(readr.num_columns = 0)
 

@@ -1,3 +1,6 @@
+### Examines the NAM RIL GBS data from the NCBI SRA. All samples have too much 
+### missing data to use.
+
 library(tidyverse)
 library(parallel)
 

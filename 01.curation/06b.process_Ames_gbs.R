@@ -1,3 +1,5 @@
+### Process the Ames Panel GBS data using the same filters as in 06a.
+
 library(tidyverse)
 library(parallel)
 library(readxl)
