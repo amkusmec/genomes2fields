@@ -1,5 +1,7 @@
 #!/bin/bash
 
+### Runs 8 parallel MCMC chains for the random regression model.
+
 Rscript 03.variable_selection/xx.mcmcglmm_rr.R -s 624481 -c 1 > logs/mcmcglmm1.log &
 Rscript 03.variable_selection/xx.mcmcglmm_rr.R -s 180408 -c 2 > logs/mcmcglmm2.log &
 Rscript 03.variable_selection/xx.mcmcglmm_rr.R -s 82531 -c 3 > logs/mcmcglmm3.log &

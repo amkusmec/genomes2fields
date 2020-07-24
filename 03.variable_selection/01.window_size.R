@@ -1,3 +1,6 @@
+### Calculate the length of the growing season and size of windows in units of 
+### crop heat units accumulated at anthesis.
+
 library(tidyverse)
 library(lubridate)
 library(purrrlyr)

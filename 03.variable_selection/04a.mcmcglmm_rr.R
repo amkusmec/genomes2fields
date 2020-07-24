@@ -1,3 +1,8 @@
+### Not meant to be run directly.
+
+### Implements a Bayesian random regression model on the selected environmental 
+### variables.
+
 library(tidyverse)
 library(MCMCglmm)
 library(argparse)

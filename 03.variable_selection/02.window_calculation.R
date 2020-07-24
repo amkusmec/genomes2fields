@@ -1,3 +1,6 @@
+### Summarize environmental variables for each hybrid in each possible 
+### developmental window.
+
 library(tidyverse)
 library(lubridate)
 library(purrrlyr)

@@ -1,3 +1,6 @@
+### Implements a genetic algorithm to select environmental variables using 
+### weighted least squares and the extended BIC.
+
 library(tidyverse)
 library(parallel)
 

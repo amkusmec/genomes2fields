@@ -1,3 +1,5 @@
+### Process and summarize the results of the random regression model.
+
 library(tidyverse)
 library(MCMCglmm)
 library(abind)
