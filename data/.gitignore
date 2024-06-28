@@ -14,3 +14,12 @@ highConfidentPPIs.txt
 nam_recomb_bins.xlsx
 ppi_clustering.rds
 simulation
+ga_data.rds
+tableS1_hybrids.csv
+tableS2_environments.csv
+tableS6_GO_terms_LD.csv
+tableS7_GO_terms_genome.csv
+tableSX_environments.csv
+tableSX_hybrids.csv
+weather_cor.rds
+weather_tree.rds

@@ -64,3 +64,10 @@ cg_terms %>%
          Successes = white_draws, `Max. Successes` = white, Failures = black, 
          Trials = draws) %>%
   write_csv("data/gemma/table_s5.csv")
+
+lg_terms %>%
+  select(GO, Name, perm, white_draws, white, black, draws) %>% 
+  rename(`GO ID` = GO, `GO Terms` = Name, `Permutation p-value` = perm, 
+         Successes = white_draws, `Max. Successes` = white, Failures = black, 
+         Trials = draws) %>% 
+  write_csv("data/gemma/tableS8_GO_terms_region.csv")

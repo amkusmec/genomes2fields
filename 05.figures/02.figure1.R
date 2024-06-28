@@ -64,15 +64,33 @@ sig_mat <- as_tibble(sig_mat, rownames = "Site1") %>%
   mutate(Q = p.adjust(P, method = "fdr"), 
          Sig = if_else(Q <= 0.05, "*", ""))
 
+cor_mat_lower <- cor_mat_lower %>% 
+  mutate(across(Site1:Site2, ~ str_replace(.x, "_20", "\\(") %>% paste0(")")))
+cor_mat_upper <- cor_mat_upper %>% 
+  mutate(across(Site1:Site2, ~ str_replace(.x, "_20", "\\(") %>% paste0(")")))
+sig_mat <- sig_mat %>% 
+  mutate(across(Site1:Site2, ~ str_replace(.x, "_20", "\\(") %>% paste0(")")))
+
 pA <- ggplot() + theme_classic() + 
   geom_tile(aes(x = Site2, y = Site1, fill = Tau), cor_mat_lower) +
-  geom_text(aes(x = Site2, y = Site1, label = N_hyb), cor_mat_upper, size = 2) +
-  geom_text(aes(x = Site2, y = Site1, label = Sig), sig_mat, size = 4) +
+  # geom_text(aes(x = Site2, y = Site1, label = N_hyb), cor_mat_upper, size = 2) +
+  geom_point(aes(x = Site2, y = Site1, colour = N_hyb), cor_mat_upper, size = 1.5, shape = 15) + 
+  geom_text(aes(x = Site2, y = Site1, label = Sig), sig_mat, size = 2.5, nudge_x = -0.5) +
   scale_fill_distiller(type = "div", palette = "RdBu", direction = 1) +
-  labs(x = "", y = "", fill = expression(tau[b])) + coord_flip() + 
+  scale_colour_steps(low = "#f7fcf5", high = "#005a32", show.limits = TRUE, 
+                     breaks = seq(0, 350, 50)) + 
+  labs(x = "", y = "", fill = expression(tau[b]), 
+       colour = "Hybrids", tag = "(b)") + coord_flip() + 
   scale_x_discrete(position = "top") + scale_y_discrete(position = "right") +
-  theme(axis.text.x = element_text(hjust = -0.0625, angle = 45), 
-        legend.position = "bottom", legend.key.width = unit(0.1, "npc"))
+  theme(axis.text.x = element_text(hjust = -0.0625, angle = 90, size = 4.5), 
+        axis.text.y = element_text(size = 5), 
+        legend.position = "bottom", 
+        legend.key.width = unit(0.05, "npc"), 
+        legend.key.height = unit(0.1, "npc"), 
+        legend.text = element_text(size = 6, angle = 45, vjust = 0.25), 
+        legend.title = element_text(size = 8), 
+        legend.title.position = "top", 
+        plot.margin = unit(c(5.5, 2, 5.5, 2), "points"))
 
 
 # Heterogeneity in scaled genetic variance
@@ -97,26 +115,60 @@ gvar <- boot %>%
   mutate(Site = names(boot), 
          Lower = if_else(Lower < 0, 0, Lower)) %>%
   dplyr::select(Site, everything())
-pB <- ggplot(gvar, aes(x = Site)) + theme_classic() +
+
+# pB <- ggplot(gvar, aes(x = Site)) + theme_classic() +
+#   geom_hline(aes(yintercept = Y), colour = "grey80", 
+#              data = tibble(Y = c(0, 0.25, 0.5, 0.75))) + 
+#   geom_point(aes(y = VarG)) +
+#   geom_segment(aes(x = Site, xend = Site, y = Lower, yend = Upper)) + 
+#   scale_y_continuous(labels = scales::percent, limits = c(0, 0.9)) +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+#         plot.margin = unit(c(7.5, 5.5, 5.5, 3.5), units = "points")) +
+#   labs(x = "", y = expression(paste("% ", sigma[g]^2)), tag = "a") + 
+#     theme(axis.title = element_text(size = 15), 
+#           axis.text = element_text(size = 12))
+
+gvar <- gvar %>% separate("Site", c("Experiment", "Year"), sep = "_", remove = FALSE)
+pB <- ggplot(gvar, aes(x = Experiment)) + theme_classic() +
   geom_hline(aes(yintercept = Y), colour = "grey80", 
              data = tibble(Y = c(0, 0.25, 0.5, 0.75))) + 
-  geom_point(aes(y = VarG)) +
-  geom_segment(aes(x = Site, xend = Site, y = Lower, yend = Upper)) + 
+  geom_point(aes(y = VarG, group = Year, colour = Year), position = position_dodge(0.85)) +
+  geom_linerange(aes(ymin = Lower, ymax = Upper, 
+                   group = Year, colour = Year), position = position_dodge(0.85)) + 
   scale_y_continuous(labels = scales::percent, limits = c(0, 0.9)) +
+  scale_colour_brewer(type = "qual", palette = "Dark2") + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
         plot.margin = unit(c(7.5, 5.5, 5.5, 3.5), units = "points")) +
-  labs(x = "", y = expression(paste("% ", sigma[g]^2)))
-
+  labs(x = "", y = expression(paste("% ", sigma[g]^2)), tag = "(a)", colour = "") + 
+  theme(axis.title = element_text(size = 10), 
+        axis.text.y = element_text(size = 8), 
+        axis.text.x = element_text(size = 6), 
+        legend.position = "inside", 
+        legend.position.inside = c(0.45, 0.9), 
+        legend.title = element_text(size = 10), 
+        legend.text = element_text(size = 8), 
+        legend.background = element_rect(fill = "transparent"), 
+        legend.direction = "horizontal")
 
 lay <- matrix(c(1, 1, 2, 2, 2), nrow = 1)
-grob1 <- grobTree(ggplotGrob(pA), 
-                  textGrob("B", x = unit(0.03, "npc"), y = unit(0.975, "npc"), 
-                           hjust = "left", vjust = "top", 
-                           gp = gpar(fontface = "bold", fontsize = 14)))
-grob2 <- grobTree(ggplotGrob(pB), 
-                  textGrob("A", x = unit(0.03, "npc"), y = unit(0.975, "npc"), 
-                           hjust = "left", vjust = "top", 
-                           gp = gpar(fontface = "bold", fontsize = 14)))
-gp <- arrangeGrob(grob2, grob1, layout_matrix = lay)
-ggsave("figures/single/gei_summary.pdf", gp, width = 17, height = 8, units = "in", 
-       dpi = 300)
+# grob1 <- grobTree(ggplotGrob(pA), 
+#                   textGrob("B", x = unit(0.03, "npc"), y = unit(0.975, "npc"), 
+#                            hjust = "left", vjust = "top", 
+#                            gp = gpar(fontface = "bold", fontsize = 14)))
+# grob2 <- grobTree(ggplotGrob(pB), 
+#                   textGrob("A", x = unit(0.03, "npc"), y = unit(0.975, "npc"), 
+#                            hjust = "left", vjust = "top", 
+#                            gp = gpar(fontface = "bold", fontsize = 14)))
+# gp <- arrangeGrob(grob2, grob1, layout_matrix = lay)
+gp <- arrangeGrob(ggplotGrob(pB), ggplotGrob(pA), layout_matrix = lay)
+# ggsave("figures/single/gei_summary_miniscules.pdf", gp, width = 17, height = 8, units = "in", 
+       # dpi = 300)
+png("figures/final/figure01.png", width = 18, height = 9, 
+    units = "in", res = 200)
+plot(gp)
+dev.off()
+
+{
+  gp <- arrangeGrob(ggplotGrob(pB), ggplotGrob(pA), layout_matrix = matrix(c(1, 1, 2, 2, 2), ncol = 1))
+  ggsave("figures/final/Figure_1.pdf", gp, width = 80, height = 200, units = "mm", dpi = 600)
+}

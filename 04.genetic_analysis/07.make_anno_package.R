@@ -18,8 +18,8 @@ go <- read_delim("~/anno/ATH_GO_SLIM2.txt", delim = "\t", progress = FALSE) %>%
   select(-Ontology) %>%
   rename(ATGID = Locus.name, GO = GO.ID, NAME = GO.term)
 
-anno <- inner_join(ortho, go, by = "ATGID") %>%
-  select(-ATGID, -NAME) %>%
+anno <- inner_join(ortho, go, by = "ATGID", relationship = "many-to-many") %>%
+  select(-ATGID) %>%
   mutate(EVIDENCE = "IEA")
 
 gff <- read_delim("~/anno/ZmB73_5b_FGS.gff", comment = "#", delim = "\t", 
@@ -36,7 +36,8 @@ gff <- read_delim("~/anno/ZmB73_5b_FGS.gff", comment = "#", delim = "\t",
 all_genes <- intersect(gff$GID, anno$GID)
 
 anno <- filter(anno, GID %in% all_genes) %>%
-  distinct(GID, GO, NAME, .keep_all = TRUE)
+  distinct(GID, GO, NAME, .keep_all = TRUE) %>% 
+  select(-NAME)
 gff <- gff %>%
   filter(GID %in% all_genes) %>%
   distinct(GID, CHROMOSOME, START, END)

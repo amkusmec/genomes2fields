@@ -449,3 +449,8 @@ sim_map.rds
 synthetic_hybrids_haplotypes.rds
 synthetic_hybrids_phased.rds
 add_map.csv
+G2F_Ames_combined.vcf.gz
+ld_rare.csv
+ld_rare2.csv
+ld_temp.csv
+tester_rare.csv

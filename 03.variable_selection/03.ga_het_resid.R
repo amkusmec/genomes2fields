@@ -69,6 +69,17 @@ ga <- function(resp, pred, wts, popsize, n = 5, maxiter = 50, run = 10,
   })
   bic0 <- min(bic, na.rm = TRUE)
   
+  # Fastest so far is byte-compiled 28 core parallelization (running two simultaneously)
+  # Which is 1.272 (s) per evaluation * 500 iterations * 100 replicates *22 environments = ~16 days
+  # eval_pop <- compiler::cmpfun(function(x) {
+  #   temp <- pred[, c(rep(TRUE, offset), x)]
+  #   BIC(lm(resp ~ 0 + temp, weights = wts)) + 2*gamma*log(choose(nvar, sum(x)))
+  # })
+  # cl <- makeCluster(28)
+  # clusterExport(cl, list("pred", "offset", "resp", "wts", "gamma", "nvar"))
+  # system.time(bic <- parCapply(cl, S0, eval_pop))
+  # stopCluster(cl)
+  
   no_change <- 0
   iter <- 0
   repeat {
@@ -217,9 +228,12 @@ var_table <- tibble(Variable = names(tt)) %>%
   ungroup()
 pB <- ggplot(var_table, aes(y = Index)) + theme_bw() +
   geom_segment(aes(yend = Index, x = Start, xend = End)) +
-  facet_wrap(~ EVar, ncol = 2) + labs(x = "% CHU to Anthesis", y = "") +
+  facet_wrap(~ EVar, ncol = 2) + labs(x = "% CHU to Anthesis", y = "", tag = "b") +
   scale_x_continuous(labels = scales::percent, limits = c(0, 1.5)) +
-  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), 
+        axis.text.x = element_text(size = 12), 
+        axis.title = element_text(size = 14), 
+        strip.text = element_text(size = 14))
 ggsave("figures/select/stage_one_variables.pdf", plot = pB, width = 5,
        height = 8, units = "in", dpi = 300)
 
@@ -251,7 +265,9 @@ pA <- ggplot(perf, aes(x = Iteration, y = Minimum)) + theme_classic() +
   geom_line(data = tibble(Iteration = 1:length(g2$minima),
                           Minimum = g2$minima),
             colour = "red", size = 1) +
-  labs(y = "eBIC")
+  labs(y = "eBIC", tags = "a") + 
+  theme(axis.title = element_text(size = 14), 
+        axis.text = element_text(size = 12))
 
 
 # Evaluate all possible models --------------------------------------------
@@ -275,6 +291,12 @@ bic <- apply(models, 2, function(v) {
 bic <- c(BIC(lm(y ~ 0 + X[, 1:45], weights = wts)) + 
            2*1*log(choose(ncol(X) - 45, 0)), bic)
 
+# combos <- enframe(bic, name = "Index", value = "BIC") %>%
+#   mutate(DeltaBIC = BIC - min(BIC),
+#          EvidenceRatio = exp(-0.5*0)/exp(-0.5*DeltaBIC),
+#          Weight = exp(-0.5*BIC)/sum(exp(-0.5*BIC)))
+
+
 selected <- models[, which.min(bic) - 1]
 pA <- pA + geom_hline(yintercept = min(bic), linetype = 2)
 ggsave("figures/select/stage_one_GA.pdf", plot = pA, width = 5, height = 4,
@@ -291,10 +313,12 @@ pC <- tibble(V = selected[!is.na(selected)]) %>%
     geom_segment(aes(x = Start, xend = End, y = Ypos, yend = Ypos,
                      colour = Variable), size = 2) +
     geom_vline(xintercept = 1, linetype = 2) +
-    labs(x = "% CHU to anthesis", y = "") + guides(colour = "none") +
+    labs(x = "% CHU to anthesis", y = "", tag = "c") + guides(colour = "none") +
     scale_colour_manual(values = c("TMAX" = "red", "SR" = "goldenrod", "NET" = "brown")) +
     scale_y_continuous(breaks = 1:3, labels = c("NET", "SR" ,"TMAX")) +
-    scale_x_continuous(limits = c(0, 1.5), labels = scales::percent)
+    scale_x_continuous(limits = c(0, 1.5), labels = scales::percent) + 
+  theme(axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 14))
 ggsave("figures/select/selected_variables.pdf", plot = pC, width = 5, height = 4,
        units = "in", dpi = 300)
 
@@ -302,21 +326,26 @@ library(grid)
 library(gridExtra)
 
 lay <- matrix(c(1, 2, 3, 2), ncol = 2, byrow = TRUE)
-grob1 <- grobTree(ggplotGrob(pA),
-                  textGrob("A", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
-                           hjust = "left", vjust = "top",
-                           gp = gpar(fontface = "bold", fontsize = 14)))
-grob2 <- grobTree(ggplotGrob(pB),
-                  textGrob("B", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
-                           hjust = "left", vjust = "top",
-                           gp = gpar(fontface = "bold", fontsize = 14)))
-grob3 <- grobTree(ggplotGrob(pC),
-                  textGrob("C", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
-                           hjust = "left", vjust = "top",
-                           gp = gpar(fontface = "bold", fontsize = 14)))
-gp <- arrangeGrob(grob1, grob2, grob3, layout_matrix = lay)
-ggsave("figures/select/ga_results.pdf", gp, width = 10, height = 8,
-       units = "in", dpi = 300)
+# grob1 <- grobTree(ggplotGrob(pA),
+#                   textGrob("A", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
+#                            hjust = "left", vjust = "top",
+#                            gp = gpar(fontface = "bold", fontsize = 14)))
+# grob2 <- grobTree(ggplotGrob(pB),
+#                   textGrob("B", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
+#                            hjust = "left", vjust = "top",
+#                            gp = gpar(fontface = "bold", fontsize = 14)))
+# grob3 <- grobTree(ggplotGrob(pC),
+#                   textGrob("C", x = unit(0.03, "npc"), y = unit(0.975, "npc"),
+#                            hjust = "left", vjust = "top",
+#                            gp = gpar(fontface = "bold", fontsize = 14)))
+# gp <- arrangeGrob(grob1, grob2, grob3, layout_matrix = lay)
+gp <- arrangeGrob(ggplotGrob(pA), ggplotGrob(pB), ggplotGrob(pC), 
+                  layout_matrix = lay)
+# ggsave("figures/select/ga_results_miniscule.png", gp, width = 10, height = 8,
+#        units = "in", dpi = 300)
+png("figures/final/figure02.png", width = 10.25, height = 8, units = "in", res = 300)
+plot(gp)
+dev.off()
 
 write_lines(selected[!is.na(selected)], "data/phenotype/selected_variables.txt")
 

@@ -212,11 +212,38 @@ mae <- bind_rows(mae_A, mae_AD) %>%
   mutate(Model = factor(Model),
          Size = factor(Size, levels = sort(unique(Size)), ordered = TRUE))
 
+est <- c("(Intercept)", "NET_X0.175_X1.4", "SR_X0.65_X1.425", "TMAX_X0.825_X0.95", 
+         "TMAX_X0.875_X1.425") %>%
+  map_df(function(p) {
+      varE_A <- scan(paste0("data/bglr/h2/eigA_", p, "_varE.dat"))[-c(1:400)]
+      varU_A <- scan(paste0("data/bglr/h2/eigA_", p, "_ETA_A_varU.dat"))[-c(1:400)]
+      
+      varE_D <- scan(paste0("data/bglr/h2/eigD_", p, "_varE.dat"))[-c(1:400)]
+      varUA_D <- scan(paste0("data/bglr/h2/eigD_", p, "_ETA_A_varU.dat"))[-c(1:400)]
+      varUD_D <- scan(paste0("data/bglr/h2/eigD_", p, "_ETA_D_varU.dat"))[-c(1:400)]
+      
+      tibble(Phenotype = p, 
+             Model = rep(c("A", "A+D"), each = length(varE_A)), 
+             h2 = c(varU_A/(varU_A + varE_A), 
+                    (varUA_D + varUD_D)/(varUA_D + varUD_D + varE_D)))
+    }) %>%
+  group_by(Phenotype, Model) %>%
+  summarise(h2 = mean(h2)) %>%
+  ungroup() %>%
+  mutate(Model = factor(Model), 
+         Phenotype = str_replace(Phenotype, "\\(Intercept\\)", "Intercept") %>%
+           str_replace("TMAX_X0.825_X0.95", "Pre-anthesis max. temp.") %>%
+           str_replace("TMAX_X0.875_X1.425", "Post-anthesis max. temp.") %>%
+           str_replace("SR_X0.65_X1.425", "Mid-season solar radiation") %>%
+           str_replace("NET_X0.175_X1.4", "Whole season net evapotranspiration"))
+
 ggplot(cors, aes(x = Size, y = R)) + theme_bw() +
   geom_boxplot(aes(fill = Model), outlier.shape = 1, outlier.colour = "red",
                alpha = 0.7, notch = TRUE) +
+  geom_hline(aes(yintercept = h2, colour = Model), est, linetype = 2) + 
   facet_wrap(~ Phenotype) +
   scale_fill_manual(values = c("A" = "skyblue", "A+D" = "palegreen")) +
+  scale_colour_manual(values = c("A" = "skyblue", "A+D" = "palegreen")) +
   labs(x = "Training Set Size", y = "Pearson correlation") +
   theme(panel.grid.major.x = element_blank())
 ggsave("figures/prediction/st_ad_accuracy.pdf", width = 9, height = 6,

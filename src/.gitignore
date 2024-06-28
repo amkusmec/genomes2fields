@@ -3,3 +3,6 @@ plink
 gemma-0.98.1-linux-static
 sfa
 sfa1.0.tar.gz
+block_bootstrap.R
+corrplot.R
+ga_parallel.R

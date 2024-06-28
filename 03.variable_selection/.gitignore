@@ -1,2 +1,5 @@
 rxn_ash.R
 xx.mcmc_sh.R
+ga_cv.R
+ga_test.R
+prep_ga_data.R

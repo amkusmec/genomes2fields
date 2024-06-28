@@ -143,14 +143,15 @@ sig <- by_row(sig, function(r) {
                r$Position[1] >= ld$Start &
                r$Position[1] < ld$End)
   ld$Decay[i]
-}, .to = "Decay") %>%
-  unnest() %>%
+}, .to = "Decay") %>% 
+  select(SNP:N_pheno) %>% 
+  # unnest(cols = c(Decay)) %>%
   mutate(Lower = Position - Decay, 
          Upper = Position + Decay) %>%
-  by_row(function(r) {
-    s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.1)
-    colnames(m2$result$lfsr)[s]
-  }, .to = "Phenotype") %>%
+  # by_row(function(r) {
+  #   s <- which(m2$result$lfsr[r$SNP[1], ] <= 0.1)
+  #   colnames(m2$result$lfsr)[s]
+  # }, .to = "Phenotype2") %>%
   mutate(N_pheno = sapply(Phenotype, length))
 
 sig %>%
